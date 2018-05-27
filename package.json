@@ -1,7 +1,12 @@
 {
   "name": "hexo-site",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "clean": "./node_modules/.bin/hexo clean",
+    "build": "./node_modules/.bin/hexo generate",
+    "deploy": "./node_modules/.bin/hexo deploy"
+  },
   "hexo": {
     "version": "3.7.1"
   },

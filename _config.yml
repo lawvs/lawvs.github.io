@@ -84,7 +84,7 @@ theme: hexo-theme-yilia
 deploy:
   type: git
   repo: git@github.com:lawvs/lawvs.github.io
-  branch: master
+  branch: gh-pages
 
 jsonContent:
   meta: false
