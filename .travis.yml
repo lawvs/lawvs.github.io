@@ -1,0 +1,23 @@
+language: node_js
+node_js:
+  - node
+cache:
+  yarn: true
+  directories:
+    # - $HOME/.cache/yarn
+    - node_modules
+before_install:
+  - npm install --global yarn
+install:
+  - yarn install
+script:
+  - yarn clean
+  - yarn build
+deploy:
+  provider: pages
+  github_token: $GITHUB_TOKEN
+  skip-cleanup: true
+  keep-history: true
+  local-dir: public
+  on:
+    branch: master
