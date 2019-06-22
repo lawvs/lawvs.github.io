@@ -2,25 +2,24 @@
 title: Window 下 MySQL 管理员密码重置
 date: 2017-12-21 23:00
 tags:
-- MySQL
+  - MySQL
 ---
 
 - 不小心忘记 MySQL 的 root 密码，该怎么办？
-+ <!--more-->
+
+* <!--more-->
 
 ## 缘起
 
 - 由于想学一点 PHP 需要用到数据库，于是从硬盘中翻出半年多没用的 MySQL
 - 但是因为太久没用了，管理员密码怎么试都不正确
 - 被逼无奈只好翻阅资料尝试重置密码
-- === 以下教程基于Windows10 及 MySQL5.7 ===
+- === 以下教程基于 Windows10 及 MySQL5.7 ===
 
 ## 跳过密码登录
 
-- 第一种方式是修改 MySQL 配置
-	- 在 MySQL 目录下的配置文件 my.ini 中添加`skip-grant-tables`，保存后重启数据库`net stop mysql && net start mysql`，之后即可无密码进入数据库
-- 第二种是跳过权限表限制启动 MySQL ，当然在此之前需要关闭原有的需要密码的数据库，否则无法启动
-	- `net stop mysql && mysqld --skip-grant-tables`
+- 第一种方式是修改 MySQL 配置 - 在 MySQL 目录下的配置文件 my.ini 中添加`skip-grant-tables`，保存后重启数据库`net stop mysql && net start mysql`，之后即可无密码进入数据库
+- 第二种是跳过权限表限制启动 MySQL ，当然在此之前需要关闭原有的需要密码的数据库，否则无法启动 - `net stop mysql && mysqld --skip-grant-tables`
 
 ## 修改管理员密码
 
