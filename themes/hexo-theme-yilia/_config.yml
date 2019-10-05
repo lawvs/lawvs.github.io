@@ -70,7 +70,7 @@ favicon: /favicon.png
 avatar: /static/head.jpg
 
 #是否开启分享
-share_jia: true
+share_jia: false
 
 #评论：1、多说；2、网易云跟帖；3、畅言；4、Disqus；5、Gitment
 #不需要使用某项，直接设置值为false，或注释掉
