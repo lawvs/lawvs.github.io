@@ -1,10 +1,12 @@
 ---
 title: 前端的 GitHub Actions 简单实践
-date: 2020-06-24 00:00:00
+date: 2021-01-06 00:00:00
 tags:
   - GitHub
   - GitHub Actions
 ---
+
+- <!--more-->
 
 这篇文档不会介绍 [GitHub Actions](https://github.com/features/actions) 的基本概念和使用方法，因此并不适合没有使用过它的访客，如果你属于这类人，那么建议你先阅读 [GitHub Actions 官方文档](https://docs.github.com/en/free-pro-team@latest/actions) 并尝试使用。
 
