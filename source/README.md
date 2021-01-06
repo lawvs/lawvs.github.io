@@ -1,6 +1,6 @@
 # My Blog website
 
-[![Build Status](https://travis-ci.org/lawvs/lawvs.github.io.svg?branch=master)](https://travis-ci.org/lawvs/lawvs.github.io)
+![Build Status](https://github.com/lawvs/lawvs.github.io/workflows/Build/badge.svg)
 
 技术 || 随笔
 
