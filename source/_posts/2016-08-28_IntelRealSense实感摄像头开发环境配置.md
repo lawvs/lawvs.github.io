@@ -7,7 +7,7 @@ tags:
 
 [Intel® RealSense™ SDK Documentation](https://software.intel.com/sites/landingpage/realsense/camera-sdk/v1.1/documentation/html/index.html)
 
-- <!--more-->
+<!--more-->
 
 # 配置 C++开发环境
 
