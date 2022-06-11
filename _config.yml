@@ -7,7 +7,7 @@ title: Deep Space
 
 subtitle: Fall In The Dark
 description: 个人博客
-author: lawvs
+author: whitewater
 language: zh_CN
 timezone:
 
@@ -32,7 +32,6 @@ skip_render: README.md
 new_post_name: :title.md # File name of new posts
 default_layout: post
 titlecase: false # Transform title into titlecase
-external_link: true # Open external links in new tab
 filename_case: 0
 render_drafts: false
 post_asset_folder: false
