@@ -6,11 +6,11 @@ tags:
   - GitHub Actions
 ---
 
-- <!--more-->
+在 GitHub Actions 公测一年之后，我已经把它当作首选的 CI/CD 工具了，也迁移了一部分在 [Travis CI](https://travis-ci.org/) 上的项目。借助 action 的扩展性和社区的力量，使用感受相当满意，不过也有不少坑和需要吐槽的地方。
+
+<!--more-->
 
 这篇文档不会介绍 [GitHub Actions](https://github.com/features/actions) 的基本概念和使用方法，因此并不适合没有使用过它的访客，如果你属于这类人，那么建议你先阅读 [GitHub Actions 官方文档](https://docs.github.com/en/free-pro-team@latest/actions) 并尝试使用。
-
-在 GitHub Actions 公测一年之后，我已经把它当作首选的 CI/CD 工具了，也迁移了一部分在 [Travis CI](https://travis-ci.org/) 上的项目。借助 action 的扩展性和社区的力量，使用感受相当满意，不过也有不少坑和需要吐槽的地方。
 
 首先最需要吐槽的一点是配置文件暂时[不支持](https://github.community/t/support-for-yaml-anchors/16128) [yaml 的锚点引用](https://yaml.org/spec/1.2/spec.html#id2785586)。如果你没有精力将配置改为 action ，可能需要频繁复制配置片段。因此我将我常用的配置分为不同部分分别说明。
 
@@ -30,10 +30,10 @@ on:
     branches: [master]
   # 通常用在使用 action 发包的场合
   tags:
-    - 'v*'
+    - "v*"
   # 定时触发器 注意时区是 UTC
   schedule:
-    - cron: '0 0 * * *' # At every day 00:00(UTC).
+    - cron: "0 0 * * *" # At every day 00:00(UTC).
   # 如果需要手动触发
   # 进阶用法参考 https://docs.github.com/en/free-pro-team@latest/actions/reference/events-that-trigger-workflows#example-workflow-configuration
   workflow_dispatch:
@@ -77,10 +77,30 @@ jobs:
 
 ## Install Dependencies
 
+npm
+
+<details>
+<summary>点击查看</summary>
+
+```yml
+- name: Get npm cache directory path
+  id: npm-cache-dir-path
+  run: echo "::set-output name=dir::$(npm config get cache)"
+
+- name: Cache npm modules
+  uses: actions/cache@v1
+  with:
+    path: ${{ steps.npm-cache-dir-path.outputs.dir }}
+    key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+    restore-keys: ${{ runner.os }}-npm
+```
+
+</details>
+
 yarn
 
 <details>
-<summary>Details</summary>
+<summary>点击查看</summary>
 
 ```yml
 - name: Get yarn cache directory path
@@ -101,31 +121,25 @@ yarn
 
 </details>
 
-npm
-
-<details>
-<summary>Details</summary>
-
-```yml
-- name: Get npm cache directory path
-  id: npm-cache-dir-path
-  run: echo "::set-output name=dir::$(npm config get cache)"
-
-- name: Cache npm modules
-  uses: actions/cache@v1
-  with:
-    path: ${{ steps.npm-cache-dir-path.outputs.dir }}
-    key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-    restore-keys: ${{ runner.os }}-npm
-```
-
-</details>
-
 由于安装的篇幅实在是有些长，而且并不直观，我已经开始使用现成的第三方的 [bahmutov/npm-install](https://github.com/bahmutov/npm-install)
 
 ```yml
 - name: Install
   uses: bahmutov/npm-install@v1
+```
+
+更新：我已切换到 pnpm
+
+```yml
+- uses: pnpm/action-setup@v2
+  with:
+    version: "latest"
+
+- name: Use Node.js ${{ matrix.node-version }}
+  uses: actions/setup-node@v2
+  with:
+    node-version: ${{ matrix.node-version }}
+    cache: "pnpm"
 ```
 
 ## Check
@@ -200,7 +214,7 @@ popd
 发布 npm 包和 GitHub Release
 
 <details>
-<summary>Details</summary>
+<summary>点击查看</summary>
 
 ```yml
 # on:
@@ -257,7 +271,7 @@ popd
 最后，一个完整的 workflow 的结构应该是这样的
 
 <details>
-<summary>Details</summary>
+<summary>点击查看</summary>
 
 ```yml
 name: Build
