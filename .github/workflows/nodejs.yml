@@ -8,28 +8,42 @@ on:
 
 jobs:
   build:
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     runs-on: ubuntu-latest
 
+    permissions:
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
+
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
 
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v4
         with:
-          node-version: 13.x
+          node-version: 20
 
       - name: Install node modules
-        uses: bahmutov/npm-install@v1
+        run: pnpm install
 
       - name: Build
-        run: yarn build
+        run: pnpm run build
+
+      - name: Setup Pages
+        id: pages
+        # https://github.com/actions/configure-pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload pages artifacts
+        # https://github.com/actions/upload-pages-artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./public
 
       - name: Deploy GitHub Pages
         if: github.ref == 'refs/heads/source'
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: public
-          publish_branch: master
-          force_orphan: true
+        # https://github.com/actions/deploy-pages
+        uses: actions/deploy-pages@v2
