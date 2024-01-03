@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [source]
+    branches: [main]
   pull_request:
-    branches: [source]
+    branches: [main]
 
 jobs:
   build:
@@ -44,6 +44,6 @@ jobs:
           path: ./public
 
       - name: Deploy GitHub Pages
-        if: github.ref == 'refs/heads/source'
+        if: github.ref == 'refs/heads/main'
         # https://github.com/actions/deploy-pages
         uses: actions/deploy-pages@v2
