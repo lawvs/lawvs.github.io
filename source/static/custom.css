@@ -1,0 +1,6 @@
+#post > #post-info #post-meta,
+/* force meta display one line */
+#post > #post-info #post-meta {
+  display: flex;
+  justify-content: space-evenly;
+}
