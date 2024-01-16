@@ -8,8 +8,6 @@ tags:
 
 在 GitHub Actions 公测一年之后，我已经把它当作首选的 CI/CD 工具了，也迁移了一部分在 [Travis CI](https://travis-ci.org/) 上的项目。借助 action 的扩展性和社区的力量，使用感受相当满意，不过也有不少坑和需要吐槽的地方。
 
-<!--more-->
-
 这篇文档不会介绍 [GitHub Actions](https://github.com/features/actions) 的基本概念和使用方法，因此并不适合没有使用过它的访客，如果你属于这类人，那么建议你先阅读 [GitHub Actions 官方文档](https://docs.github.com/en/free-pro-team@latest/actions) 并尝试使用。
 
 首先最需要吐槽的一点是配置文件暂时[不支持](https://github.community/t/support-for-yaml-anchors/16128) [yaml 的锚点引用](https://yaml.org/spec/1.2/spec.html#id2785586)。如果你没有精力将配置改为 action ，可能需要频繁复制配置片段。因此我将我常用的配置分为不同部分分别说明。

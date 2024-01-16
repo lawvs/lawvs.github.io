@@ -8,12 +8,9 @@ tags:
 
 偶然看到[稀土掘金 2022 编程挑战赛](https://hackathon2022.juejin.cn/#/)，题目形式比较开放而且我近期刚好有空，因此决定和朋友一起开发一个 VSCode 主题插件。
 
-<!--more-->
-
 本文涉及的[项目源码已在 GitHub 开源](https://github.com/lawvs/a-soul-theme)，这篇文章也是在这个配色主题下完成的，插件配色效果如下：
 
 ![image](https://user-images.githubusercontent.com/18554747/165396514-cca8483e-fcd2-43d8-8c06-4e922ec4623c.png)
-
 
 ## 新建项目
 

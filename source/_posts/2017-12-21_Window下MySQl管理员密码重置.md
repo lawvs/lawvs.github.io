@@ -5,9 +5,7 @@ tags:
   - MySQL
 ---
 
-- 不小心忘记 MySQL 的 root 密码，该怎么办？
-
-* <!--more-->
+不小心忘记 MySQL 的 root 密码，该怎么办？
 
 ## 缘起
 
