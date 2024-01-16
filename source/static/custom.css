@@ -4,3 +4,7 @@
   display: flex;
   justify-content: space-evenly;
 }
+
+#aside-content .card-info-data > a:nth-child(3){
+  display: none;
+}

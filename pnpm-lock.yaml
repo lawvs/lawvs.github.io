@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  hexo-theme-butterfly@4.12.0:
-    hash: uzv6vskrt3otxj36bq5y3ydgc4
-    path: patches/hexo-theme-butterfly@4.12.0.patch
-
 dependencies:
   hexo:
     specifier: ^7.0.0
@@ -45,7 +40,7 @@ dependencies:
     version: 3.0.0
   hexo-theme-butterfly:
     specifier: ^4.12.0
-    version: 4.12.0(patch_hash=uzv6vskrt3otxj36bq5y3ydgc4)
+    version: 4.12.0
   hexo-util:
     specifier: ^3.2.0
     version: 3.2.0
@@ -854,7 +849,7 @@ packages:
       - supports-color
     dev: false
 
-  /hexo-theme-butterfly@4.12.0(patch_hash=uzv6vskrt3otxj36bq5y3ydgc4):
+  /hexo-theme-butterfly@4.12.0:
     resolution: {integrity: sha512-vOHg/tjVjpBeHk23OujmJlu3efJAcuzoauI4vM3PYj4hFpeoC8SPVDZlh2QFKrpIhWJyq6EZANuYJlrq9+Anhw==}
     dependencies:
       hexo-renderer-pug: 3.0.0
@@ -862,7 +857,6 @@ packages:
     transitivePeerDependencies:
       - supports-color
     dev: false
-    patched: true
 
   /hexo-util@2.7.0:
     resolution: {integrity: sha512-hQM3h34nhDg0bSe/Tg1lnpODvNkz7h2u0+lZGzlKL0Oufp+5KCAEUX9wal7/xC7ax3/cwEn8IuoU75kNpZLpJQ==}

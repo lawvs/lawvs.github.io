@@ -35,10 +35,5 @@
   },
   "hexo": {
     "version": "7.0.0"
-  },
-  "pnpm": {
-    "patchedDependencies": {
-      "hexo-theme-butterfly@4.12.0": "patches/hexo-theme-butterfly@4.12.0.patch"
-    }
   }
 }
