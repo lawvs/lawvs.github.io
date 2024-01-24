@@ -18,7 +18,7 @@ tags:
 
 - 邮件的路由规则可以自定义，大部分情况下用 catch-all 全部转发到你的常用邮箱就行了。
 
-> Gmail 有一个小技巧是你可以在你的账号后面写上「+来源」，比如发往 example+source@gmail 的邮件仍然会发送到 example@gmail 中。如果你有多个域名就会非常方便，你可以根据这个字段在 Gmail 中筛选邮件。
+> Gmail 有一个小技巧是你可以在你的账号后面写上「+来源」，系统会将发送到 example+source@gmail 的邮件全部递送至 example@gmail 中。利用过滤器，你可以使用这个技巧在 Gmail 中分类不同邮件。
 
 ## 发！ 使用 Gmail 代发信
 
@@ -35,6 +35,14 @@ tags:
 - 然后你就可以把这个自定义邮箱设置成默认邮箱了。
 - 不过为了防止邮件被丢进垃圾邮箱，还需要更新一下 DNS 的 SPF 信息。回到 Cloudflare 控制台，在域名的 DNS 选项中找到域名的 TXT 记录，把`v=spf1 include:_spf.mx.cloudflare.net ~all`更新成 `v=spf1 include:_spf.mx.cloudflare.net include:_spf.google.com ~all`。这个记录表示允许 Gmail 和 Cloudflare 代表你发送电子邮件。
 - 好了，尽情享受你的自定义域名邮箱吧！
+
+## 等等，这是怎么做到的？
+
+我们全程在 Gmail 中操作，完全没有登录 Cloudflare，Gmail 是怎么发送邮件的呢？
+
+其实 Gmail 的代发邮件是在 「冒充」你指定的域名邮箱地址向其他一个电子邮件地址发邮件。这个行为是存在很多风险的。因此很多邮箱检测到收到邮件的真实发送地址（Sender）与宣称的发件人地址（From）不一致，就会在读信页面里显示出「由某地址代发」的提示。
+
+所以我们需要在 DNS 中添加 SPF 记录，告诉邮箱服务商这个域名允许 Gmail 代发邮件，减少邮件被拒收或直接丢进垃圾桶的风险。
 
 ## 题外话 使用 Authenticator 作为 Google 2FA 方案
 
