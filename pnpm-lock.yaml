@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   hexo:
-    specifier: ^7.1.0
-    version: 7.1.0
+    specifier: ^7.1.1
+    version: 7.1.1
   hexo-generator-archive:
     specifier: ^2.0.0
     version: 2.0.0
@@ -889,8 +889,8 @@ packages:
     resolution: {integrity: sha512-tbo2P9xRWEKQmRf7+XuPjx9It1MnaE26nA+EEb2DN39gK1x+26W7Nm4Iyp4AugQjBWYYDx7OLn4gp1WFxQpQew==}
     dev: false
 
-  /hexo@7.1.0:
-    resolution: {integrity: sha512-FFjo8NwqSQVxASSKFGkFUak720sFC/p3IxkDIOHLXQ1axQ5w4ipFU0DNqDzwyb5EJOMFYuMxFcurhm9olQP13A==}
+  /hexo@7.1.1:
+    resolution: {integrity: sha512-u6aJXG1npYkZJLl7QEOeTdm9hOwxfsLmFp4qAQVF0OAuNaikrKORjgNsjPmrWwI/tIObwjVJnEUJnV7S+NnUlw==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
