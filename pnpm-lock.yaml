@@ -39,8 +39,8 @@ dependencies:
     specifier: ^3.0.0
     version: 3.0.0
   hexo-theme-butterfly:
-    specifier: ^4.12.0
-    version: 4.12.0
+    specifier: ^4.13.0
+    version: 4.13.0
   hexo-util:
     specifier: ^3.2.0
     version: 3.2.0
@@ -849,8 +849,8 @@ packages:
       - supports-color
     dev: false
 
-  /hexo-theme-butterfly@4.12.0:
-    resolution: {integrity: sha512-vOHg/tjVjpBeHk23OujmJlu3efJAcuzoauI4vM3PYj4hFpeoC8SPVDZlh2QFKrpIhWJyq6EZANuYJlrq9+Anhw==}
+  /hexo-theme-butterfly@4.13.0:
+    resolution: {integrity: sha512-k4ufTKDrvfer0EI1E6xU5JTgS471KRyXRgRBxoUdqpTVvtY8CUnFrzh0qcxjb5WMPOark8sTCgHn/sEDIaG3Kw==}
     dependencies:
       hexo-renderer-pug: 3.0.0
       hexo-renderer-stylus: 3.0.1
