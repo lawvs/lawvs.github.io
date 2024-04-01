@@ -42,8 +42,8 @@ dependencies:
     specifier: ^4.13.0
     version: 4.13.0
   hexo-util:
-    specifier: ^3.2.0
-    version: 3.2.0
+    specifier: ^3.3.0
+    version: 3.3.0
   hexo-wordcount:
     specifier: ^6.0.1
     version: 6.0.1
@@ -806,7 +806,7 @@ packages:
     engines: {node: '>=14'}
     dependencies:
       dompurify: 3.0.6
-      hexo-util: 3.2.0
+      hexo-util: 3.3.0
       jsdom: 20.0.3
       marked: 4.3.0
     transitivePeerDependencies:
@@ -871,8 +871,8 @@ packages:
       prismjs: 1.29.0
       strip-indent: 3.0.0
 
-  /hexo-util@3.2.0:
-    resolution: {integrity: sha512-iM2eS8P88IUpcgiU2szx584bwhXzjzLLqED6WwDk55wYQZrQh/sni/UJwmoW4pxpgubbISIUPXr4LjwPyJuYzA==}
+  /hexo-util@3.3.0:
+    resolution: {integrity: sha512-YvGngXijE2muEh5L/VI4Fmjqb+/yAkmY+VuyhWVoRwQu1X7bmWodsfYRXX7CUYhi5LqsvH8FAe/yBW1+f6ZX4Q==}
     engines: {node: '>=14'}
     requiresBuild: true
     dependencies:
@@ -902,7 +902,7 @@ packages:
       hexo-fs: 4.1.1
       hexo-i18n: 2.0.0
       hexo-log: 4.1.0
-      hexo-util: 3.2.0
+      hexo-util: 3.3.0
       js-yaml: 4.1.0
       js-yaml-js-types: 1.0.1(js-yaml@4.1.0)
       micromatch: 4.0.5
