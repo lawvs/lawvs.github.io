@@ -14,7 +14,9 @@ The language detection feature is based on a machine learning model trained by [
 
 To run models in the node/browser, the VSCode team uses Tensorflow.js. They load the pre-trained model and encapsulated it into the [vscode-languagedetection](https://github.com/microsoft/vscode-languagedetection) package.
 
-Moreover, to further enhance the precision of language detection further, VSCode employs a private library named `vscode-regexp-languagedetection`. This improve the accuracy by checking the files recently opened in your workspace.
+Moreover, to further enhance the precision of language detection further, VSCode employs a private library named `vscode-regexp-languagedetection`. After checking its compressed release package, I found that it also has a built-in model. Improve the model's accuracy by checking the files that were recently opened in your workspace.
+
+After carefully studying the working principle of VSCode language detection, I created an open source repository, [Guesslang Worker](https://github.com/lawvs/guesslang-worker), which can run the language detection model on the browser. Everyone is welcome to use it.
 
 ## Details
 
@@ -74,7 +76,7 @@ export class LanguageDetectionSimpleWorker extends EditorSimpleWorker {
 }
 ```
 
-In [detectLanguagesImpl](https://github.com/microsoft/vscode/blob/19ecb4b8337d0871f0a204853003a609d716b04e/src/vs/workbench/services/languageDetection/browser/languageDetectionSimpleWorker.ts#L215-L275) method, it uses `vscode-languagedetection` to get confidence scores for each language and [adjust language confidence](https://github.com/microsoft/vscode/blob/19ecb4b8337d0871f0a204853003a609d716b04e/src/vs/workbench/services/languageDetection/browser/languageDetectionSimpleWorker.ts#L165-L213) based on VS Code's language usage, finally return the most possible language.
+In [detectLanguagesImpl](https://github.com/microsoft/vscode/blob/19ecb4b8337d0871f0a204853003a609d716b04e/src/vs/workbench/services/languageDetection/browser/languageDetectionSimpleWorker.ts#L215-L275) method, it uses `vscode-languagedetection` to get confidence scores for each language and [adjust language confidence](https://github.com/microsoft/vscode/blob/19ecb4b8337d0871f0a204853003a609d716b04e/src/vs/workbench/services/languageDetection/browser/languageDetectionSimpleWorker.ts#L165-L213) based on VS Code's language usage, finally return the most possible language. For example, the confidence in `js`, `html`, and `json` will increase because they are commonly used in VS Code.
 
 In [languageDetectionWorkerServiceImpl](https://github.com/microsoft/vscode/blob/ea142b5ccdcb797b1de6b1a46fecbf25dea2e229/src/vs/workbench/services/languageDetection/browser/languageDetectionWorkerServiceImpl.ts), it will listen to the workspace and store all your recently opened files' languages and used to calculate a [language bias](https://github.com/microsoft/vscode/blob/ea142b5ccdcb797b1de6b1a46fecbf25dea2e229/src/vs/workbench/services/languageDetection/browser/languageDetectionWorkerServiceImpl.ts#L114-L140) for the regular expression model.
 
