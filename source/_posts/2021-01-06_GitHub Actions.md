@@ -12,6 +12,45 @@ tags:
 
 首先最需要吐槽的一点是配置文件暂时[不支持](https://github.community/t/support-for-yaml-anchors/16128) [yaml 的锚点引用](https://yaml.org/spec/1.2/spec.html#id2785586)。如果你没有精力将配置改为 action ，可能需要频繁复制配置片段。因此我将我常用的配置分为不同部分分别说明。
 
+---
+
+截止 2024 年，这篇文章中的很多内容已经过时，GitHub 支持了[复用 workflows](https://docs.github.com/en/actions/sharing-automations/reusing-workflows)，原生支持了 GitHub Pages 部署，以下是一些更新的补充：
+
+## Reuse Workflows
+
+```yml
+# .github/actions/setup.yml
+name: Setup
+description: Setup the environment
+
+inputs:
+  node-version:
+    description: The version of node.js
+    required: false
+    default: "20"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+        registry-url: "https://registry.npmjs.org"
+
+    - name: Install
+      run: pnpm install
+```
+
+```yml
+- uses: ./.github/actions/setup
+  with:
+    node-version: "20"
+```
+
+原文：
+
 ## The Start
 
 这个部分会展示一个 GitHub 配置文件的基本部分。
@@ -75,6 +114,22 @@ jobs:
 
 ## Install Dependencies
 
+更新：我已切换到 pnpm， cache 部分也不再需要了
+
+```yml
+- uses: pnpm/action-setup@v2
+  with:
+    version: "latest"
+
+- name: Use Node.js ${{ matrix.node-version }}
+  uses: actions/setup-node@v2
+  with:
+    node-version: ${{ matrix.node-version }}
+    cache: "pnpm"
+```
+
+原文：
+
 npm
 
 <details>
@@ -126,20 +181,6 @@ yarn
   uses: bahmutov/npm-install@v1
 ```
 
-更新：我已切换到 pnpm
-
-```yml
-- uses: pnpm/action-setup@v2
-  with:
-    version: "latest"
-
-- name: Use Node.js ${{ matrix.node-version }}
-  uses: actions/setup-node@v2
-  with:
-    node-version: ${{ matrix.node-version }}
-    cache: "pnpm"
-```
-
 ## Check
 
 大部分前端项目都会做一些相同的工作
@@ -150,7 +191,7 @@ yarn
   run: yarn lint --report-unused-disable-directives --max-warnings=0
 
 - name: Type check
-  run: yarn typecheck # tsc --noEmit
+  run: yarn typeCheck # tsc --noEmit
 
 # 如果对接了其他应用，还需要上传测试覆盖
 - name: Test
@@ -178,7 +219,41 @@ yarn
 
 ## Deploy
 
-Github Actions 没有官方的 gh-page action，不过随着社区的完善，第三方的 [actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) 已经开发得足够齐全，完全可以满足日常使用了
+更新：GitHub 官方现在采用了新的 GitHub Pages 部署方式，不再需要发布到分支上。
+
+- 使用前需要手动在仓库中设置 GitHub Pages > Build and deployment Source 选择 GitHub Actions。
+- 对应 workflow 文件中需要添加 `permissions` 字段
+- 使用 `actions/upload-pages-artifact` 上传文件
+- 使用 `actions/deploy-pages` 部署
+
+以下是一个简单的部署示例
+
+```yml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read # to access the repository
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
+
+    steps:
+      - name: Upload artifacts
+        # https://github.com/actions/upload-pages-artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "./packages/dist"
+
+      - name: Deploy GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        # https://github.com/actions/deploy-pages
+        uses: actions/deploy-pages@v4
+```
+
+旧版：
+
+~~Github Actions 没有官方的 gh-page action~~，不过随着社区的完善，第三方的 [actions-gh-pages](https://github.com/peaceiris/actions-gh-pages) 已经开发得足够齐全，完全可以满足日常使用了
 
 ```yml
 - name: Deploy GitHub Pages
@@ -208,6 +283,10 @@ popd
 ```
 
 ## Release
+
+更新：我现在使用 [Changesets](https://github.com/changesets/changesets) 来管理版本号和发布
+
+旧版：
 
 发布 npm 包和 GitHub Release
 
