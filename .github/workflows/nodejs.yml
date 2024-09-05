@@ -36,7 +36,7 @@ jobs:
         # https://github.com/actions/upload-pages-artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./public
+          path: ./dist
 
       - name: Deploy GitHub Pages
         if: github.ref == 'refs/heads/main'
