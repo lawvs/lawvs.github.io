@@ -27,7 +27,7 @@ const className = Astro.props.class
     </div>
 
     <!-- categories -->
-    <div class="flex items-center">
+    <!-- <div class="flex items-center">
         <div class="meta-icon"
         >
             <Icon name="material-symbols:book-2-outline-rounded" class="text-xl"></Icon>
@@ -39,7 +39,7 @@ const className = Astro.props.class
                 {category || i18n(I18nKey.uncategorized)}
             </a>
         </div>
-    </div>
+    </div> -->
 
     <!-- tags -->
     <div class:list={["items-center", {"flex": !hideTagsForMobile, "hidden md:flex": hideTagsForMobile}]}>
