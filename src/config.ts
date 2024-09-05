@@ -49,7 +49,7 @@ export const navBarConfig: NavBarConfig = {
 
 export const profileConfig: ProfileConfig = {
   avatar: "assets/images/avatar.jpg", // Relative to the /src directory. Relative to the /public directory if it starts with '/'
-  name: "Water Space",
+  name: "whitewater",
   bio: "Software engineer / Open source / 東方 Project / 珂学家 / 和平主义者 / Agent / Explorers / 魔法使い",
   links: [
     // {
