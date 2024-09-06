@@ -1,5 +1,5 @@
 ---
-title: 我的博客构建历程：从 Hexo 到 Astro
+title: 博客构建历程：从 Hexo 到 Astro
 published: 2024-09-06
 description: "Simple Guides for Fuwari"
 image: "./cover.jpeg"
@@ -9,13 +9,25 @@ tags:
 draft: false
 ---
 
-2016 年四月，那时我还在念书，偶然发现 GitHub Pages 这个功能，可以免费托管静态网站。我拉着同学一起搭建了自己的博客。那时我对前端一窍不通，只能选择一些现成的主题。当时我选择了 Hexo，因为它是一个简单的静态博客框架，而且有很多好看的主题可以选择。对着文档各种折腾，我居然成功地把博客搭建起来并且部署到了 GitHub Pages 上。那个时候选用的主题甚至是 Hexo 自带的默认主题。而且那时候的部署方式是在本地构建完成之后，直接推送到 GitHub 仓库的 gh-pages 分支上。一旦本地的 markdown 文件丢失，那么博客的内容也就很难找回了。
+## 初探 GitHub Pages
+
+在2016年4月，我还在念书时偶然发现了 GitHub Pages 提供的免费托管静态网站功能，于是我拉上同学一起尝试搭建自己的博客。由于对前端一窍不通，只能选择一些现成的主题，最终选择使用 Hexo 这个简单的静态博客框架。通过各种折腾文档，我成功将博客搭建起来并部署到了 GitHub Pages 上。那时候我采用的是 Hexo 自带的默认主题，部署方式是在本地构建完成后直接推送到 GitHub 仓库的 gh-pages 分支上。如果本地的 markdown 文件丢失，博客内容就很难找回了。
+
+## 重构与自动化部署
 
 到了2018年5月，我对前端和版本控制有了更深的理解，便重构了整个博客项目，选择了 [hexo-theme-yilia](https://github.com/litten/hexo-theme-yilia) 这个简约优雅的主题，并为博客添加了 Travis CI 自动部署功能。这样一来，只要在 GitHub 上提交新的文章，Travis CI 就会自动构建并部署到 GitHub Pages。这种方式不仅免除了本地文件丢失的担忧，还大大提高了部署的便捷性。
 
-随着时间的推移，GitHub Actions 逐渐取代了 Travis CI，我也在 2021 年的六月将博客的自动部署迁移到了 GitHub Actions 上，那个时候我还在用 Node.js v13。
+不过随着时间的推移，GitHub Actions 逐渐取代了 Travis CI，我也在 2021 年的六月将博客的自动部署迁移到了 GitHub Actions 上，那个时候我还在用 Node.js v13。
 
-前端的技术更新换代速度非常快，在我使用 Hexo 的这几年里，出现了很多新的静态网站生成器，比如 Gatsby、VuePress、Astro 等等。Hexo 也做了很多更新，我也终于在 2024 年年初找到时间把博客的各种依赖升级到最新，把 Hexo 升级到了 7.0 版本，然后顺便 又换了一个主题 [hexo-theme-butterfly](https://github.com/jerryc127/hexo-theme-butterfly)。得益于 Hexo 的更新，现在可以在 package.json 中直接安装主题，而不用再去 clone 主题的仓库，然后再配置主题。在这次更新之后，整个项目十分干净，几乎只包含了 markdown 文件和配置文件，极其优雅。
+## 升级 Hexo
+
+前端技术更新换代非常快，在使用 Hexo 期间，出现了很多新的静态网站生成器，如 Gatsby、VuePress、Astro 等等。Hexo 自身也不断更新。终于在2024年初，我找时间将博客的各种依赖升级到最新，并将 Hexo 升级到了 7.0 版本，同时更换了主题 [hexo-theme-butterfly](https://github.com/jerryc127/hexo-theme-butterfly)。值得一提的是，现在可以在 package.json 中直接安装主题，不再需要手动 clone 主题仓库。升级后，整个项目非常干净，仅包含 markdown 文件和配置文件，极其优雅。
+
+使用 butterfly 主题后，博客的界面焕然一新，变得更加美观和现代化。如果不是因为下面要说的静态资源管理问题，我可能会一直使用这个主题。
+
+![butterfly](./butterfly-theme.png)
+
+## 静态资源管理问题
 
 但是在写博客过程中，静态资源（图片）的管理一直是一个问题，我要么选择将图片放在不知道能够存活多久的图床上，要么将图片全部塞进统一的资源文件夹中。即使 Hexo 提供了 [post_asset_folder](https://hexo.io/docs/asset-folders#Post-Asset-Folder) 功能，也只是将图片放在和 markdown 文件同名的文件夹中，和我理想的 [TextBundle](http://textbundle.org/) 模式还是有一点区别，没法将所有内容装在一个文件夹中，一个拷贝直接带走。
 
@@ -23,7 +35,21 @@ draft: false
 
 在 2024 年年中的时候，我因为需要写文档站点，尝试了 [Astro](https://astro.build/) 这个新的网站框架，它的特点是内容驱动，框架无关，并且能自动优化网站的资源图片，能够大大减小网站的体积。最重要的是，我发现它的内容管理方式非常符合我的需求，可以将图片和 markdown 文件放在一起。这样一来，我就可以放心地添加图片了。
 
+## 迁移至 Astro
+
 项目的迁移计划被安排在 9 月，我在两个都很好看的主题 [Typography](https://github.com/moeyua/astro-theme-typography) 和 [🍥Fuwari](https://github.com/saicaca/fuwari) 中选择了更有特点（花里胡哨）的 🍥Fuwari 主题，也就是你现在看到这个。
+
+项目的迁移过程非常顺利，我只需要将博客内容 `src/content/posts/` 目录下，然后更新整个网站的配置，就可以在本地预览和构建了。这个过程非常简单，我只用了不到半个晚上的时间就完成了基本的迁移工作。
+
+只是我不得不 fork 主题仓库，把主题源码全部贴进自己仓库。如果主题更新了，我可能需要手动合并更新，这一点有点麻烦。希望随着时间的推移，这些问题能得到解决。
+
+此外，我隐藏了没有使用的 category 功能，仅保留了 tags 功能。我认为 tags 更加灵活，可以随意添加。
+
+![fuwari theme](./fuwari-theme.png)
+
+## 下一次迭代
+
+我不知道下一次重构博客会在什么时候，也不确定会采用什么技术。但是我希望到那时，新的博客能变得更加有趣和个性化。希望你会喜欢这个全新的博客。
 
 ## 附录
 
