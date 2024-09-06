@@ -1,8 +1,8 @@
 ---
 title: 博客构建历程：从 Hexo 到 Astro
 published: 2024-09-06
-description: "Simple Guides for Fuwari"
-image: "./cover.jpeg"
+description: 'Simple Guides for Fuwari'
+image: './cover.jpeg'
 tags:
   - Blogging
 # category: Guides
@@ -41,7 +41,7 @@ draft: false
 
 ## 迁移至 Astro
 
-项目的迁移计划被安排在 9 月，我在两个都很好看的主题 [Typography](https://github.com/moeyua/astro-theme-typography) 和 [🍥Fuwari](https://github.com/saicaca/fuwari) 中选择了更有特点（花里胡哨）的 🍥Fuwari 主题，也就是你现在看到这个。
+项目的迁移计划被安排在 9 月，我在两个都很好看的主题 [Typography](https://github.com/moeyua/astro-theme-typography) 和 [🍥Fuwari](https://github.com/saicaca/fuwari/tree/1399bd9bc790d53ac0ca6ffa8d983ae4c3ee6608) 中选择了更有特点（花里胡哨）的 🍥Fuwari 主题，也就是你现在看到这个。
 
 项目的迁移过程非常顺利，我只需要将博客内容 `src/content/posts/` 目录下，然后更新整个网站的配置，就可以在本地预览和构建了。这个过程非常简单，我只用了不到半个晚上的时间就完成了基本的迁移工作。
 
