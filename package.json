@@ -67,10 +67,7 @@
     "sass": "^1.77.8",
     "stylus": "^0.63.0"
   },
-  "prettier": {
-    "semi": false,
-    "singleQuote": true
-  },
+  "prettier": {},
   "pnpm": {
     "overrides": {
       "vite-imagetools": "^6.2.7",
