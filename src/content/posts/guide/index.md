@@ -9,6 +9,10 @@ tags:
 draft: false
 ---
 
+> 这张封面 🍥Fuwari 主题自带的用法示例，为了参考，我选择将其保留
+>
+> Cover image source: [Source](<https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/208fc754-890d-4adb-9753-2c963332675d/width=2048/01651-1456859105-(colour_1.5),girl,_Blue,yellow,green,cyan,purple,red,pink,_best,8k,UHD,masterpiece,male%20focus,%201boy,gloves,%20ponytail,%20long%20hair,.jpeg>)
+
 ## 初探 GitHub Pages
 
 在2016年4月，我还在念书时偶然发现了 GitHub Pages 提供的免费托管静态网站功能，于是我拉上同学一起尝试搭建自己的博客。由于对前端一窍不通，只能选择一些现成的主题，最终选择使用 Hexo 这个简单的静态博客框架。通过各种折腾文档，我成功将博客搭建起来并部署到了 GitHub Pages 上。那时候我采用的是 Hexo 自带的默认主题，部署方式是在本地构建完成后直接推送到 GitHub 仓库的 gh-pages 分支上。如果本地的 markdown 文件丢失，博客内容就很难找回了。
@@ -33,7 +37,7 @@ draft: false
 
 这朵乌云一直笼罩在我的心头，导致我在写博客的时候一直不愿意添加图片。我甚至用出了将图片转为 base64 内联在 markdown 文件中的邪道。但是这样一来，markdown 文件会变得非常巨大，难以维护。
 
-在 2024 年年中的时候，我因为需要写文档站点，尝试了 [Astro](https://astro.build/) 这个新的网站框架，它的特点是内容驱动，框架无关，并且能自动优化网站的资源图片，能够大大减小网站的体积。最重要的是，我发现它的内容管理方式非常符合我的需求，可以将图片和 markdown 文件放在一起。这样一来，我就可以放心地添加图片了。
+在 2024 年年中的时候，我因为需要写文档站点，尝试了 [Astro](https://astro.build/) 这个新的网站框架，它的特点是内容驱动，框架无关，并且能自动优化网站的资源，能够大大减小网站的体积。最重要的是，我发现它的内容管理方式非常符合我的需求，不仅可以将图片和 markdown 文件放在一起，构建的时候还能自动将图片转为 webp 格式。我可以放心地为文章添加图片了。
 
 ## 迁移至 Astro
 
