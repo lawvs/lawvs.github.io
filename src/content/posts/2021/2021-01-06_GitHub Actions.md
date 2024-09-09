@@ -4,6 +4,7 @@ published: 2021-01-06 00:00:00
 tags:
   - GitHub
   - GitHub Actions
+  - Frontend
 ---
 
 在 GitHub Actions 公测一年之后，我已经把它当作首选的 CI/CD 工具了，也迁移了一部分在 [Travis CI](https://travis-ci.org/) 上的项目。借助 action 的扩展性和社区的力量，使用感受相当满意，不过也有不少坑和需要吐槽的地方。
