@@ -4,6 +4,7 @@ published: 2022-05-01 00:00:00
 tags:
   - 比赛
   - VSCode
+  - Frontend
 ---
 
 偶然看到[稀土掘金 2022 编程挑战赛](https://hackathon2022.juejin.cn/#/)，题目形式比较开放而且我近期刚好有空，因此决定和朋友一起开发一个 VSCode 主题插件。
