@@ -3,6 +3,7 @@ title: 新加坡美食分享
 published: 2024-05-06
 tags:
   - food
+image: "./assets/5Q5KRFtSp7cktTTsyeZb1TdgkGd5oh15kz8_Y_l0pxk=.blob.jpg"
 draft: false
 ---
 
