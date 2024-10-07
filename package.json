@@ -13,7 +13,7 @@
     "new-post": "node scripts/new-post.js",
     "format": "biome format --write ./src",
     "lint": "biome check --apply ./src",
-    "sort-package-json": "pnpx sort-package-json"
+    "sort-package-json": "pnpm dlx @package-json/sort"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
