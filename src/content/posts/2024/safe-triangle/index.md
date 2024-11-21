@@ -27,7 +27,7 @@ referenceElement.addEventListener("mouseleave", () => {
 
 ![hover tooltip](./hover-tooltip.webp)
 
-怎么还是不行？原来设计师为了美观，在主菜单和子菜单之间留了一点空白，导致鼠标还未到达子菜单上时就触发了 `mouseleave` 事件。
+然后就出现了上述情况，为什么还是不行？原来设计师为了美观，在主菜单和子菜单之间留了一点空白，导致鼠标还未到达子菜单上时就触发了 `mouseleave` 事件。
 
 ## 延迟
 
@@ -62,7 +62,7 @@ floatingElement.addEventListener("mouseleave", () => {
 
 ## 细节补充
 
-如果你的内容展示在其他悬浮层，可能会出现刚展示时鼠标已在 `referenceElement` 内部的情况。此时用户移动鼠标并不会触发 `mouseenter` 事件。因此，我更推荐使用 `mouseover` 事件而不是 `mouseenter`。
+如果你的 `referenceElement` 比较大或者这个这个元素可能是中途渲染的，可能会出现鼠标一直在 `referenceElement` 的内部的情况。此时仅在这个元素内部移动鼠标并不会触发 `mouseenter` 事件。因此，我更推荐使用 `mouseover` 事件而不是 `mouseenter`。
 
 另外，为了防止在添加事件监听器时，用户的鼠标已经在元素上，我们可以使用下面的代码判断并手动触发 hover 事件。
 
