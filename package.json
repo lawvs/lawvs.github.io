@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
-    "@astrojs/rss": "^4.0.10",
+    "@astrojs/rss": "^4.0.11",
     "@astrojs/sitemap": "^3.2.1",
     "@astrojs/svelte": "^5.7.3",
     "@astrojs/tailwind": "^5.1.4",
@@ -55,7 +55,7 @@
     "@iconify-json/fa6-regular": "^1.2.3",
     "@iconify-json/fa6-solid": "^1.2.3",
     "@iconify-json/material-symbols": "^1.2.12",
-    "@iconify/svelte": "^4.1.0",
+    "@iconify/svelte": "^4.2.0",
     "@rollup/plugin-yaml": "^4.1.2",
     "@tailwindcss/typography": "^0.5.15",
     "@types/markdown-it": "^14.1.2",
@@ -64,7 +64,7 @@
     "photoswipe": "^5.4.4",
     "prettier": "^3.4.2",
     "remark-github-admonitions-to-directives": "^2.1.0",
-    "sass": "^1.83.0",
+    "sass": "^1.83.1",
     "stylus": "^0.64.0"
   },
   "prettier": {},
