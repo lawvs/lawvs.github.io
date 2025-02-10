@@ -62,9 +62,9 @@
     "@types/mdast": "^4.0.4",
     "@types/sanitize-html": "^2.13.0",
     "photoswipe": "^5.4.4",
-    "prettier": "^3.4.2",
+    "prettier": "^3.5.0",
     "remark-github-admonitions-to-directives": "^2.1.0",
-    "sass": "^1.83.4",
+    "sass": "^1.84.0",
     "stylus": "^0.64.0"
   },
   "prettier": {},
