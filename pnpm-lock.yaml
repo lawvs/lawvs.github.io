@@ -125,8 +125,8 @@ importers:
         specifier: ^1.2.23
         version: 1.2.23
       '@iconify/svelte':
-        specifier: ^4.2.0
-        version: 4.2.0(svelte@4.2.20)
+        specifier: ^5.0.0
+        version: 5.0.0(svelte@4.2.20)
       '@rollup/plugin-yaml':
         specifier: ^4.1.2
         version: 4.1.2(rollup@2.79.2)
@@ -1065,8 +1065,8 @@ packages:
   '@iconify-json/material-symbols@1.2.23':
     resolution: {integrity: sha512-GoNuWl8dVDiVFQq+HEgbOmPW0vTycs7qXgtpfBAx4XgDI4MVwnEIjIcYy/tlzzjMF1TPDwkX5fI1+KIylSdBwQ==}
 
-  '@iconify/svelte@4.2.0':
-    resolution: {integrity: sha512-fEl0T7SAPonK7xk6xUlRPDmFDZVDe2Z7ZstlqeDS/sS8ve2uyU+Qa8rTWbIqzZJlRvONkK5kVXiUf9nIc+6OOQ==}
+  '@iconify/svelte@5.0.0':
+    resolution: {integrity: sha512-Bm5iKnNpIWHuUlWaaf16QgVL1tcbQUUSdPdkvDlpmYXg3nFJSA1SLY9V4rRTd+K4h3QT12ZS7JHFLkf8khQd8Q==}
     peerDependencies:
       svelte: '>4.0.0'
 
@@ -6236,7 +6236,7 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
-  '@iconify/svelte@4.2.0(svelte@4.2.20)':
+  '@iconify/svelte@5.0.0(svelte@4.2.20)':
     dependencies:
       '@iconify/types': 2.0.0
       svelte: 4.2.20
