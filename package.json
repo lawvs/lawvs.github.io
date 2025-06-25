@@ -54,7 +54,7 @@
     "@iconify-json/fa6-brands": "^1.2.5",
     "@iconify-json/fa6-regular": "^1.2.3",
     "@iconify-json/fa6-solid": "^1.2.3",
-    "@iconify-json/material-symbols": "^1.2.26",
+    "@iconify-json/material-symbols": "^1.2.27",
     "@iconify/svelte": "^4.2.0",
     "@rollup/plugin-yaml": "^4.1.2",
     "@tailwindcss/typography": "^0.5.16",
@@ -62,7 +62,7 @@
     "@types/mdast": "^4.0.4",
     "@types/sanitize-html": "^2.16.0",
     "photoswipe": "^5.4.4",
-    "prettier": "^3.5.3",
+    "prettier": "^3.6.0",
     "remark-github-admonitions-to-directives": "^2.1.0",
     "sass": "^1.89.2",
     "stylus": "^0.64.0"
