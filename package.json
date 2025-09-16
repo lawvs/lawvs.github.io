@@ -55,7 +55,7 @@
     "@iconify-json/fa6-regular": "^1.2.4",
     "@iconify-json/fa6-solid": "^1.2.4",
     "@iconify-json/material-symbols": "^1.2.35",
-    "@iconify/svelte": "^4.2.0",
+    "@iconify/svelte": "^5.0.2",
     "@rollup/plugin-yaml": "^4.1.2",
     "@tailwindcss/typography": "^0.5.16",
     "@types/markdown-it": "^14.1.2",
