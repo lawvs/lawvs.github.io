@@ -49,12 +49,12 @@
     "unist-util-visit": "^5.0.0"
   },
   "devDependencies": {
-    "@astrojs/ts-plugin": "^1.10.4",
-    "@biomejs/biome": "2.2.5",
+    "@astrojs/ts-plugin": "^1.10.5",
+    "@biomejs/biome": "2.2.6",
     "@iconify-json/fa6-brands": "^1.2.6",
     "@iconify-json/fa6-regular": "^1.2.4",
     "@iconify-json/fa6-solid": "^1.2.4",
-    "@iconify-json/material-symbols": "^1.2.41",
+    "@iconify-json/material-symbols": "^1.2.42",
     "@iconify/svelte": "^4.2.0",
     "@rollup/plugin-yaml": "^4.1.2",
     "@tailwindcss/typography": "^0.5.19",
