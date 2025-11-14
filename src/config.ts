@@ -79,6 +79,11 @@ export const profileConfig: ProfileConfig = {
       icon: "fa6-brands:github",
       url: "https://github.com/lawvs",
     },
+    {
+      name: "Afilmory",
+      icon: "fa6-solid:photo-film",
+      url: "https://afilmory.waterwater.moe/",
+    },
   ],
 };
 
