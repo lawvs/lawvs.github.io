@@ -1,47 +1,44 @@
-import sitemap from '@astrojs/sitemap'
-import svelte from '@astrojs/svelte'
-import tailwind from '@astrojs/tailwind'
-import swup from '@swup/astro'
-import Compress from 'astro-compress'
-import icon from 'astro-icon'
-import { defineConfig } from 'astro/config'
-import Color from 'colorjs.io'
-import rehypeAutolinkHeadings from 'rehype-autolink-headings'
-import rehypeComponents from 'rehype-components' /* Render the custom directive content */
-import rehypeKatex from 'rehype-katex'
-import rehypeSlug from 'rehype-slug'
-import remarkDirective from 'remark-directive' /* Handle directives */
-import remarkGithubAdmonitionsToDirectives from 'remark-github-admonitions-to-directives'
-import remarkMath from 'remark-math'
-import { AdmonitionComponent } from './src/plugins/rehype-component-admonition.mjs'
-import { GithubCardComponent } from './src/plugins/rehype-component-github-card.mjs'
-import { parseDirectiveNode } from './src/plugins/remark-directive-rehype.js'
-import { remarkReadingTime } from './src/plugins/remark-reading-time.mjs'
-import { remarkExcerpt } from './src/plugins/remark-excerpt.js'
-
-const oklchToHex = (str) => {
-  const DEFAULT_HUE = 250
-  const regex = /-?\d+(\.\d+)?/g
-  const matches = str.string.match(regex)
-  const lch = [matches[0], matches[1], DEFAULT_HUE]
-  return new Color('oklch', lch).to('srgb').toString({
-    format: 'hex',
-  })
-}
+import sitemap from "@astrojs/sitemap";
+import svelte from "@astrojs/svelte";
+import tailwind from "@astrojs/tailwind";
+import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
+import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
+import swup from "@swup/astro";
+import expressiveCode from "astro-expressive-code";
+import icon from "astro-icon";
+import { defineConfig } from "astro/config";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import rehypeComponents from "rehype-components"; /* Render the custom directive content */
+import rehypeKatex from "rehype-katex";
+import rehypeSlug from "rehype-slug";
+import remarkDirective from "remark-directive"; /* Handle directives */
+import remarkGithubAdmonitionsToDirectives from "remark-github-admonitions-to-directives";
+import remarkMath from "remark-math";
+import remarkSectionize from "remark-sectionize";
+import { expressiveCodeConfig } from "./src/config.ts";
+import { pluginLanguageBadge } from "./src/plugins/expressive-code/language-badge.ts";
+import { AdmonitionComponent } from "./src/plugins/rehype-component-admonition.mjs";
+import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
+import { parseDirectiveNode } from "./src/plugins/remark-directive-rehype.js";
+import { remarkExcerpt } from "./src/plugins/remark-excerpt.js";
+import { remarkReadingTime } from "./src/plugins/remark-reading-time.mjs";
+import { pluginCustomCopyButton } from "./src/plugins/expressive-code/custom-copy-button.js";
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://www.waterwater.moe/',
-  base: '/',
-  trailingSlash: 'always',
+  site: "https://fuwari.vercel.app/",
+  base: "/",
+  trailingSlash: "always",
   integrations: [
-    tailwind(),
+    tailwind({
+      nesting: true,
+    }),
     swup({
       theme: false,
-      animationClass: 'transition-swup-', // see https://swup.js.org/options/#animationselector
+      animationClass: "transition-swup-", // see https://swup.js.org/options/#animationselector
       // the default value `transition-` cause transition delay
       // when the Tailwind class `transition-all` is used
-      containers: ['main'],
+      containers: ["main", "#toc"],
       smoothScrolling: true,
       cache: true,
       preload: true,
@@ -52,21 +49,59 @@ export default defineConfig({
     }),
     icon({
       include: {
-        'material-symbols': ['*'],
-        'fa6-brands': ['*'],
-        'fa6-regular': ['*'],
-        'fa6-solid': ['*'],
+        "preprocess: vitePreprocess(),": ["*"],
+        "fa6-brands": ["*"],
+        "fa6-regular": ["*"],
+        "fa6-solid": ["*"],
+      },
+    }),
+    expressiveCode({
+      themes: [expressiveCodeConfig.theme, expressiveCodeConfig.theme],
+      plugins: [
+        pluginCollapsibleSections(),
+        pluginLineNumbers(),
+        pluginLanguageBadge(),
+        pluginCustomCopyButton(),
+      ],
+      defaultProps: {
+        wrap: true,
+        overridesByLang: {
+          shellsession: {
+            showLineNumbers: false,
+          },
+        },
+      },
+      styleOverrides: {
+        codeBackground: "var(--codeblock-bg)",
+        borderRadius: "0.75rem",
+        borderColor: "none",
+        codeFontSize: "0.875rem",
+        codeFontFamily:
+          "'JetBrains Mono Variable', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+        codeLineHeight: "1.5rem",
+        frames: {
+          editorBackground: "var(--codeblock-bg)",
+          terminalBackground: "var(--codeblock-bg)",
+          terminalTitlebarBackground: "var(--codeblock-topbar-bg)",
+          editorTabBarBackground: "var(--codeblock-topbar-bg)",
+          editorActiveTabBackground: "none",
+          editorActiveTabIndicatorBottomColor: "var(--primary)",
+          editorActiveTabIndicatorTopColor: "none",
+          editorTabBarBorderBottomColor: "var(--codeblock-topbar-bg)",
+          terminalTitlebarBorderBottomColor: "none",
+        },
+        textMarkers: {
+          delHue: 0,
+          insHue: 180,
+          markHue: 250,
+        },
+      },
+      frames: {
+        showCopyToClipboardButton: false,
       },
     }),
     svelte(),
     sitemap(),
-    Compress({
-      CSS: false,
-      Image: false,
-      Action: {
-        Passed: async () => true, // https://github.com/PlayForm/Compress/issues/376
-      },
-    }),
   ],
   markdown: {
     remarkPlugins: [
@@ -75,6 +110,7 @@ export default defineConfig({
       remarkExcerpt,
       remarkGithubAdmonitionsToDirectives,
       remarkDirective,
+      remarkSectionize,
       parseDirectiveNode,
     ],
     rehypePlugins: [
@@ -85,32 +121,32 @@ export default defineConfig({
         {
           components: {
             github: GithubCardComponent,
-            note: (x, y) => AdmonitionComponent(x, y, 'note'),
-            tip: (x, y) => AdmonitionComponent(x, y, 'tip'),
-            important: (x, y) => AdmonitionComponent(x, y, 'important'),
-            caution: (x, y) => AdmonitionComponent(x, y, 'caution'),
-            warning: (x, y) => AdmonitionComponent(x, y, 'warning'),
+            note: (x, y) => AdmonitionComponent(x, y, "note"),
+            tip: (x, y) => AdmonitionComponent(x, y, "tip"),
+            important: (x, y) => AdmonitionComponent(x, y, "important"),
+            caution: (x, y) => AdmonitionComponent(x, y, "caution"),
+            warning: (x, y) => AdmonitionComponent(x, y, "warning"),
           },
         },
       ],
       [
         rehypeAutolinkHeadings,
         {
-          behavior: 'append',
+          behavior: "append",
           properties: {
-            className: ['anchor'],
+            className: ["anchor"],
           },
           content: {
-            type: 'element',
-            tagName: 'span',
+            type: "element",
+            tagName: "span",
             properties: {
-              className: ['anchor-icon'],
-              'data-pagefind-ignore': true,
+              className: ["anchor-icon"],
+              "data-pagefind-ignore": true,
             },
             children: [
               {
-                type: 'text',
-                value: '#',
+                type: "text",
+                value: "#",
               },
             ],
           },
@@ -124,23 +160,14 @@ export default defineConfig({
         onwarn(warning, warn) {
           // temporarily suppress this warning
           if (
-            warning.message.includes('is dynamically imported by') &&
-            warning.message.includes('but also statically imported by')
+            warning.message.includes("is dynamically imported by") &&
+            warning.message.includes("but also statically imported by")
           ) {
-            return
+            return;
           }
-          warn(warning)
-        },
-      },
-    },
-    css: {
-      preprocessorOptions: {
-        stylus: {
-          define: {
-            oklchToHex: oklchToHex,
-          },
+          warn(warning);
         },
       },
     },
   },
-})
+});
