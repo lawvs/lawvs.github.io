@@ -159,8 +159,8 @@ _(图示：Xcode 中看到的 Assets 组结构)_
 
 文件打包进去了，接下来就是告诉 WebView 去哪里找。
 
-- **Android**: Android 有一个特殊的协议 `file:///android_asset/` 可以直接访问 assets 目录下的文件。
-- **iOS**: iOS 的文件在 Bundle 根目录下，通常可以直接通过文件名访问。
+- **Android**: Android 有一个特殊的协议 `file:///android_asset/` 可以访问 assets 目录下的文件。
+- **iOS**: iOS 的文件则可以直接通过路径 `html/index.html` 访问。
 
 代码实现：
 
