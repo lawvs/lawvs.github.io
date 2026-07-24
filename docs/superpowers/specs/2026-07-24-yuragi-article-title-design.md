@@ -18,6 +18,9 @@ RSS, and article content remain unchanged.
 - Treat the six existing `astro check` errors as baseline; do not fix them or
   add new diagnostics.
 - A failed font or WASM load must leave the original title visible.
+- A cold title enhancement gets a 300 ms budget after hydration. If no
+  renderable SVG is ready by then, keep the original title for that visit and
+  do not replace it later.
 
 ## Architecture
 
@@ -42,16 +45,22 @@ fetches. The existing text remains the fallback if that external fetch fails.
 2. `client:load` hydrates the title without blocking the rest of the page.
 3. A module-level promise loads the 611,458-byte WASM asset and the font once.
 4. Yuragi compiles the article title into an outline.
-5. The component measures its available width, builds an SVG, and hides only
-   the visual fallback after the SVG is ready.
-6. `ResizeObserver` rebuilds layout from the cached outline when the title
+5. Hydration starts a 300 ms animation budget and makes the fallback visually
+   transparent while preserving its layout and accessible text.
+6. If compilation and SVG creation finish inside that budget, the component
+   claims the budget, installs the SVG, and hides the fallback semantically.
+   If the budget expires first, the fallback becomes visible again and that
+   island ignores the late compile result.
+7. The remote font request is not canceled on expiry, so later article
+   navigations can reuse the warmed module-level font promise.
+8. `ResizeObserver` rebuilds layout from the cached outline when the title
    width changes; it does not recompile the font.
-7. Swup-created article islands reuse browser and module caches. Because that
+9. Swup-created article islands reuse browser and module caches. Because that
    makes compilation nearly immediate, an island mounted while the incoming
    `#swup-container` has computed opacity below `1` defers its initial settle
    animation until that container's opacity transition ends. A normal page
    load animates immediately.
-8. The deferred callback reads the latest SVG produced by `ResizeObserver` and
+10. The deferred callback reads the latest SVG produced by `ResizeObserver` and
    is removed if the component unmounts before the visit ends.
 
 Mobile uses a 30px title size and desktop (`min-width: 768px`) uses 36px,
@@ -69,7 +78,9 @@ preferences are honored by Yuragi's animation helper.
 
 Font loading, WASM loading, title compilation, and SVG creation are all
 progressive enhancement. Any rejection leaves the fallback text visible and
-does not block article navigation or rendering.
+does not block article navigation or rendering. Expiring the 300 ms budget is
+not an error: it selects the stable fallback for that island and prevents a
+late full-title-to-animation reversal.
 
 ## Verification
 
@@ -84,3 +95,7 @@ does not block article navigation or rendering.
   and Swup-mounted titles wait for the visit to finish.
 - A browser navigation smoke test verifies that the settle animation starts
   after the Swup container becomes visible.
+- Animation-budget unit tests verify that a fast result can claim the budget,
+  while expiry restores the fallback and rejects a late claim.
+- A cold-browser smoke test verifies that a delayed font never replaces a
+  fallback after the 300 ms budget.

@@ -465,3 +465,193 @@ git add docs package.json src/components/YuragiTitle.svelte \
   src/utils/yuragi-animation.ts test/yuragi-animation.test.mjs
 git commit -m "fix: replay yuragi title animation after swup"
 ```
+
+### Task 5: Prevent a late cold-font animation from replacing the title
+
+**Files:**
+- Modify: `src/utils/yuragi-animation.ts`
+- Modify: `src/components/YuragiTitle.svelte`
+- Modify: `test/yuragi-animation.test.mjs`
+
+**Interfaces:**
+- Consumes: a 300 ms deadline, an expiry callback, and an injectable timeout
+  scheduler
+- Produces: `createAnimationBudget(durationMs, onExpire, schedule?)`, returning
+  `{ claim(): boolean; cancel(): void }`
+
+- [ ] **Step 1: Add failing animation-budget tests**
+
+Append to `test/yuragi-animation.test.mjs`:
+
+```js
+test("claims a Yuragi animation budget before its deadline", async () => {
+  const { createAnimationBudget } = await loadTransitionGate();
+  let expire;
+  let cancellations = 0;
+  let expirations = 0;
+  const budget = createAnimationBudget(
+    300,
+    () => {
+      expirations += 1;
+    },
+    (run, delayMs) => {
+      assert.equal(delayMs, 300);
+      expire = run;
+      return () => {
+        cancellations += 1;
+      };
+    },
+  );
+
+  assert.equal(budget.claim(), true);
+  assert.equal(budget.claim(), false);
+  assert.equal(cancellations, 1);
+  expire();
+  assert.equal(expirations, 0);
+});
+
+test("expires a Yuragi animation budget and rejects a late claim", async () => {
+  const { createAnimationBudget } = await loadTransitionGate();
+  let expire;
+  let expirations = 0;
+  const budget = createAnimationBudget(
+    300,
+    () => {
+      expirations += 1;
+    },
+    (run) => {
+      expire = run;
+      return () => {};
+    },
+  );
+
+  expire();
+  assert.equal(expirations, 1);
+  assert.equal(budget.claim(), false);
+});
+```
+
+- [ ] **Step 2: Run the tests and verify RED**
+
+Run:
+
+```bash
+pnpm test:yuragi
+```
+
+Expected: the three existing tests pass and the two new tests fail because
+`createAnimationBudget` is not exported.
+
+- [ ] **Step 3: Implement the animation budget**
+
+Add to `src/utils/yuragi-animation.ts`:
+
+```ts
+export type TimeoutScheduler = (
+  run: () => void,
+  delayMs: number,
+) => () => void;
+
+const scheduleTimeout: TimeoutScheduler = (run, delayMs) => {
+  const timeout = setTimeout(run, delayMs);
+  return () => clearTimeout(timeout);
+};
+
+export function createAnimationBudget(
+  durationMs: number,
+  onExpire: () => void,
+  schedule: TimeoutScheduler = scheduleTimeout,
+) {
+  let active = true;
+  const cancelTimeout = schedule(() => {
+    if (!active) return;
+    active = false;
+    onExpire();
+  }, durationMs);
+
+  return {
+    claim() {
+      if (!active) return false;
+      active = false;
+      cancelTimeout();
+      return true;
+    },
+    cancel() {
+      if (!active) return;
+      active = false;
+      cancelTimeout();
+    },
+  };
+}
+```
+
+- [ ] **Step 4: Apply the budget to the title lifecycle**
+
+In `YuragiTitle.svelte`, replace the `ready` boolean with:
+
+```ts
+type EnhancementState = "fallback" | "pending" | "ready";
+const ANIMATION_BUDGET_MS = 300;
+let enhancementState: EnhancementState = "fallback";
+```
+
+On mount, set `enhancementState = "pending"` and create a budget whose expiry
+restores `"fallback"`. Only install the first SVG if the state is `"pending"`
+and `budget.claim()` succeeds. Continue allowing responsive SVG rebuilds in
+the `"ready"` state; ignore render attempts in `"fallback"`. Cancel the budget
+during unmount and select `"fallback"` on compilation or rendering failure.
+
+Render the fallback with:
+
+```svelte
+<span
+  class:pending={enhancementState === "pending"}
+  class:visually-hidden={enhancementState === "ready"}
+>{text}</span>
+```
+
+Preserve layout and accessibility while pending:
+
+```css
+.pending {
+  opacity: 0;
+}
+```
+
+- [ ] **Step 5: Verify GREEN and browser behavior**
+
+Run:
+
+```bash
+pnpm test:yuragi
+pnpm build
+```
+
+Use a cold Chrome profile with the font request delayed beyond 300 ms.
+Expected: fallback opacity returns to `1` at the deadline, no SVG or shard
+animation appears afterward, and the font request may still finish.
+
+Use a warm Chrome navigation.
+Expected: the fallback remains visually hidden and the title animates after
+the incoming Swup opacity transition reaches `1`.
+
+- [ ] **Step 6: Verify and commit**
+
+Run:
+
+```bash
+pnpm exec biome check src/utils/yuragi-animation.ts \
+  src/components/YuragiTitle.svelte test/yuragi-animation.test.mjs
+pnpm check
+```
+
+Expected: Biome passes; `pnpm check` reports exactly the six baseline errors
+and no Yuragi diagnostics.
+
+Commit:
+
+```bash
+git add docs src/utils/yuragi-animation.ts \
+  src/components/YuragiTitle.svelte test/yuragi-animation.test.mjs
+git commit -m "fix: skip late yuragi title animation"
+```
