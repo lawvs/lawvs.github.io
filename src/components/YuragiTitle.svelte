@@ -27,6 +27,7 @@ import {
 	loadTitleOutlineIfEnhancing,
 	runAfterPageTransition,
 	shouldStartTitleEnhancement,
+	waitForOpaqueTransition,
 } from "../utils/yuragi-animation";
 
 export let text: string;
@@ -34,6 +35,8 @@ export let text: string;
 type EnhancementState = "fallback" | "pending" | "ready";
 
 const ANIMATION_BUDGET_MS = 300;
+// Hard-stop a stuck gate at five times the current 200 ms Swup fade.
+const PAGE_TRANSITION_GATE_TIMEOUT_MS = 1_000;
 
 let svgHost: HTMLSpanElement;
 let enhancementState: EnhancementState = "fallback";
@@ -135,38 +138,18 @@ onMount(() => {
 							return () => {};
 						}
 
-						let completed = false;
-						const cleanup = () =>
-							swupContainer.removeEventListener(
-								"transitionend",
-								handleTransitionEnd,
-							);
-						const finish = () => {
-							if (completed) return;
-							completed = true;
-							cleanup();
-							run();
-						};
-						const handleTransitionEnd = (event: TransitionEvent) => {
-							if (
-								event.target === swupContainer &&
-								event.propertyName === "opacity"
-							) {
-								finish();
-							}
-						};
-
-						swupContainer.addEventListener(
-							"transitionend",
-							handleTransitionEnd,
+						return waitForOpaqueTransition(
+							swupContainer,
+							() =>
+								Number.parseFloat(
+									getComputedStyle(swupContainer).opacity,
+								) >= 1,
+							run,
+							() => {
+								if (!disposed) selectFallback();
+							},
+							PAGE_TRANSITION_GATE_TIMEOUT_MS,
 						);
-						if (
-							Number.parseFloat(getComputedStyle(swupContainer).opacity) >= 1
-						) {
-							finish();
-						}
-
-						return cleanup;
 					},
 				},
 			);

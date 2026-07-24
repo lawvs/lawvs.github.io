@@ -22,6 +22,245 @@ async function loadYuragiAnimationModule() {
 	);
 }
 
+function createTransitionTarget() {
+	const listeners = new Map();
+	const target = {
+		addEventListener(type, listener) {
+			const typedListeners = listeners.get(type) ?? new Set();
+			typedListeners.add(listener);
+			listeners.set(type, typedListeners);
+		},
+		removeEventListener(type, listener) {
+			listeners.get(type)?.delete(listener);
+		},
+		dispatch(type, propertyName = "opacity") {
+			for (const listener of listeners.get(type) ?? []) {
+				listener({ propertyName, target });
+			}
+		},
+		listenerCount(type) {
+			return listeners.get(type)?.size ?? 0;
+		},
+	};
+	return target;
+}
+
+test("finishes a zero-duration opacity transition on a defensive frame", async () => {
+	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
+	const target = createTransitionTarget();
+	const frames = [];
+	const timeouts = [];
+	let opaque = false;
+	let runs = 0;
+	let expirations = 0;
+
+	waitForOpaqueTransition(
+		target,
+		() => opaque,
+		() => {
+			runs += 1;
+		},
+		() => {
+			expirations += 1;
+		},
+		1_000,
+		(run) => {
+			frames.push(run);
+			return () => {};
+		},
+		(run) => {
+			timeouts.push(run);
+			return () => {};
+		},
+	);
+
+	assert.equal(runs, 0);
+	assert.equal(frames.length, 1);
+	opaque = true;
+	frames.shift()();
+	assert.equal(runs, 1);
+	timeouts.shift()();
+	assert.equal(expirations, 0);
+});
+
+test("finishes an opaque transitioncancel and cleans every waiter", async () => {
+	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
+	const target = createTransitionTarget();
+	const frames = [];
+	const timeouts = [];
+	let opaque = false;
+	let runs = 0;
+	let frameCancellations = 0;
+	let timeoutCancellations = 0;
+
+	waitForOpaqueTransition(
+		target,
+		() => opaque,
+		() => {
+			runs += 1;
+		},
+		() => assert.fail("an opaque transition must not time out"),
+		1_000,
+		(run) => {
+			frames.push(run);
+			return () => {
+				frameCancellations += 1;
+			};
+		},
+		(run) => {
+			timeouts.push(run);
+			return () => {
+				timeoutCancellations += 1;
+			};
+		},
+	);
+
+	assert.equal(target.listenerCount("transitionend"), 1);
+	assert.equal(target.listenerCount("transitioncancel"), 1);
+	opaque = true;
+	target.dispatch("transitioncancel");
+
+	assert.equal(runs, 1);
+	assert.equal(target.listenerCount("transitionend"), 0);
+	assert.equal(target.listenerCount("transitioncancel"), 0);
+	assert.equal(frameCancellations, 1);
+	assert.equal(timeoutCancellations, 1);
+
+	frames.shift()();
+	timeouts.shift()();
+	assert.equal(runs, 1);
+});
+
+test("keeps an ordinary transitionend gated until opacity reaches one", async () => {
+	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
+	const target = createTransitionTarget();
+	let opaque = false;
+	let runs = 0;
+
+	waitForOpaqueTransition(
+		target,
+		() => opaque,
+		() => {
+			runs += 1;
+		},
+		() => assert.fail("the transition must not time out"),
+		1_000,
+		() => () => {},
+		() => () => {},
+	);
+
+	target.dispatch("transitionend");
+	assert.equal(runs, 0);
+
+	opaque = true;
+	target.dispatch("transitionend");
+	assert.equal(runs, 1);
+});
+
+test("rechecks opacity at the watchdog before selecting fallback", async () => {
+	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
+	const target = createTransitionTarget();
+	let expire;
+	let opaque = false;
+	let runs = 0;
+	let fallbacks = 0;
+
+	waitForOpaqueTransition(
+		target,
+		() => opaque,
+		() => {
+			runs += 1;
+		},
+		() => {
+			fallbacks += 1;
+		},
+		1_000,
+		() => () => {},
+		(run, delayMs) => {
+			assert.equal(delayMs, 1_000);
+			expire = run;
+			return () => {};
+		},
+	);
+
+	opaque = true;
+	expire();
+	assert.equal(runs, 1);
+	assert.equal(fallbacks, 0);
+
+	let secondExpire;
+	opaque = false;
+	waitForOpaqueTransition(
+		target,
+		() => opaque,
+		() => {
+			runs += 1;
+		},
+		() => {
+			fallbacks += 1;
+		},
+		1_000,
+		() => () => {},
+		(run) => {
+			secondExpire = run;
+			return () => {};
+		},
+	);
+	secondExpire();
+	assert.equal(runs, 1);
+	assert.equal(fallbacks, 1);
+});
+
+test("cancels opacity events, frames, and watchdog without a late run", async () => {
+	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
+	const target = createTransitionTarget();
+	let frame;
+	let expire;
+	let frameCancellations = 0;
+	let timeoutCancellations = 0;
+	let opaque = false;
+	let runs = 0;
+	let fallbacks = 0;
+
+	const cancel = waitForOpaqueTransition(
+		target,
+		() => opaque,
+		() => {
+			runs += 1;
+		},
+		() => {
+			fallbacks += 1;
+		},
+		1_000,
+		(run) => {
+			frame = run;
+			return () => {
+				frameCancellations += 1;
+			};
+		},
+		(run) => {
+			expire = run;
+			return () => {
+				timeoutCancellations += 1;
+			};
+		},
+	);
+
+	cancel();
+	assert.equal(target.listenerCount("transitionend"), 0);
+	assert.equal(target.listenerCount("transitioncancel"), 0);
+	assert.equal(frameCancellations, 1);
+	assert.equal(timeoutCancellations, 1);
+
+	opaque = true;
+	target.dispatch("transitionend");
+	target.dispatch("transitioncancel");
+	frame();
+	expire();
+	assert.equal(runs, 0);
+	assert.equal(fallbacks, 0);
+});
+
 test("defers Yuragi animation until the active page transition ends", async () => {
 	const { runAfterPageTransition } = await loadYuragiAnimationModule();
 	let deferredRun;

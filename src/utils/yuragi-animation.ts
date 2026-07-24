@@ -89,6 +89,62 @@ export function runAfterPageTransition(
 	return gate.onTransitionEnd(run);
 }
 
+export function waitForOpaqueTransition(
+	target: Pick<EventTarget, "addEventListener" | "removeEventListener">,
+	isOpaque: () => boolean,
+	run: () => void,
+	onTimeout: () => void,
+	timeoutMs: number,
+	schedule: FrameScheduler = scheduleFrame,
+	scheduleExpiry: TimeoutScheduler = scheduleTimeout,
+) {
+	let active = true;
+	let cancelFrame = noop;
+	let cancelExpiry = noop;
+
+	const cancel = () => {
+		if (!active) return;
+		active = false;
+		target.removeEventListener("transitionend", handleTransition);
+		target.removeEventListener("transitioncancel", handleTransition);
+		cancelFrame();
+		cancelExpiry();
+	};
+	const finish = (callback: () => void) => {
+		if (!active) return;
+		cancel();
+		callback();
+	};
+	const check = () => {
+		if (!active) return;
+		if (isOpaque()) {
+			finish(run);
+			return;
+		}
+		cancelFrame = schedule(check);
+	};
+	const expire = () => {
+		if (!active) return;
+		finish(isOpaque() ? run : onTimeout);
+	};
+	const handleTransition: EventListener = (event) => {
+		if (
+			event.target === target &&
+			(event as TransitionEvent).propertyName === "opacity" &&
+			isOpaque()
+		) {
+			finish(run);
+		}
+	};
+
+	target.addEventListener("transitionend", handleTransition);
+	target.addEventListener("transitioncancel", handleTransition);
+	cancelExpiry = scheduleExpiry(expire, timeoutMs);
+	check();
+
+	return cancel;
+}
+
 export function createInitialAnimationController<T>(
 	animate: (current: T) => PromiseLike<unknown> | undefined,
 	hide: () => void,
