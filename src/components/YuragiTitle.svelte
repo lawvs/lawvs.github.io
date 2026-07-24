@@ -22,9 +22,9 @@ import {
 import "@yuragi-labs/core/style.css";
 import { onMount } from "svelte";
 import {
+	createInitialAnimationController,
 	createAnimationBudget,
 	runAfterPageTransition,
-	runBeforeStableFrame,
 	shouldStartTitleEnhancement,
 } from "../utils/yuragi-animation";
 
@@ -41,11 +41,9 @@ let svgVisible = false;
 onMount(() => {
 	let disposed = false;
 	let outline: TextOutline | undefined;
-	let currentSvg: SVGSVGElement | undefined;
 	let frame: number | undefined;
 	let hasScheduledInitialSettle = false;
 	let cancelInitialSettle = () => {};
-	let cancelPendingReveal = () => {};
 	const media = window.matchMedia("(min-width: 768px)");
 	const swupContainer = svgHost.closest("#swup-container");
 	const isPageTransitioning = () =>
@@ -56,15 +54,30 @@ onMount(() => {
 			? performance.getEntriesByName("first-contentful-paint", "paint").length > 0
 			: undefined;
 	let animationBudget: ReturnType<typeof createAnimationBudget> | undefined;
+	const setSvgVisible = (visible: boolean) => {
+		svgVisible = visible;
+		svgHost.classList.toggle("pending-reveal", !visible);
+	};
+	const initialAnimation = createInitialAnimationController<SVGSVGElement>(
+		(svg) =>
+			animateShards(svg, {
+				type: "settle",
+				stagger: "by-x",
+			}),
+		() => {
+			setSvgVisible(false);
+		},
+		() => {
+			if (!disposed) setSvgVisible(true);
+		},
+	);
 
 	function selectFallback() {
 		animationBudget?.cancel();
 		cancelInitialSettle();
 		cancelInitialSettle = () => {};
-		cancelPendingReveal();
-		cancelPendingReveal = () => {};
-		svgVisible = false;
-		currentSvg = undefined;
+		initialAnimation.cancel();
+		setSvgVisible(false);
 		svgHost.replaceChildren();
 		enhancementState = "fallback";
 	}
@@ -102,31 +115,16 @@ onMount(() => {
 		) {
 			return;
 		}
-		if (enhancementState === "pending") {
-			svgVisible = false;
-		}
-		svgHost.replaceChildren(svg);
-		currentSvg = svg;
+		initialAnimation.replace(svg, () => {
+			svgHost.replaceChildren(svg);
+		});
 		enhancementState = "ready";
 
 		if (!hasScheduledInitialSettle) {
 			hasScheduledInitialSettle = true;
 			cancelInitialSettle = runAfterPageTransition(
 				() => {
-					if (disposed || !currentSvg) return;
-					cancelPendingReveal = runBeforeStableFrame(
-						() => currentSvg,
-						(svg) => {
-							if (!svg) return;
-							void animateShards(svg, {
-								type: "settle",
-								stagger: "by-x",
-							});
-						},
-						(svg) => {
-							if (!disposed && svg) svgVisible = true;
-						},
-					);
+					if (!disposed) initialAnimation.start();
 				},
 				{
 					isTransitioning: isPageTransitioning,
@@ -208,7 +206,7 @@ onMount(() => {
 		if (frame !== undefined) cancelAnimationFrame(frame);
 		animationBudget?.cancel();
 		cancelInitialSettle();
-		cancelPendingReveal();
+		initialAnimation.cancel();
 		observer.disconnect();
 		media.removeEventListener("change", scheduleRender);
 	};

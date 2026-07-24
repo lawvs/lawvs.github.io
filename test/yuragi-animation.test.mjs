@@ -267,3 +267,98 @@ test("cancels the whole pending stable-frame sequence", async () => {
 	frames.shift()();
 	assert.deepEqual(events, ["animate:first", "animate:replacement"]);
 });
+
+test("hides and re-arms a same-frame replacement after reveal", async () => {
+	const { createInitialAnimationController } = await loadTransitionGate();
+	const completions = new Map();
+	const events = [];
+	const frames = [];
+	const controller = createInitialAnimationController(
+		(value) => {
+			events.push(`animate:${value}`);
+			return new Promise((resolve) => {
+				completions.set(value, resolve);
+			});
+		},
+		() => events.push("hide"),
+		() => events.push("reveal"),
+		(run) => {
+			let active = true;
+			frames.push(() => {
+				if (active) run();
+			});
+			return () => {
+				active = false;
+			};
+		},
+	);
+
+	controller.replace("first", () => events.push("install:first"));
+	controller.start();
+	frames.shift()();
+	assert.deepEqual(events, [
+		"hide",
+		"install:first",
+		"animate:first",
+		"reveal",
+	]);
+
+	controller.replace("replacement", () => events.push("install:replacement"));
+	assert.deepEqual(events.slice(-3), [
+		"hide",
+		"install:replacement",
+		"animate:replacement",
+	]);
+
+	completions.get("first")();
+	await Promise.resolve();
+	controller.replace("latest", () => events.push("install:latest"));
+	assert.deepEqual(events.slice(-3), [
+		"hide",
+		"install:latest",
+		"animate:latest",
+	]);
+
+	frames.shift()();
+	frames.shift()();
+	assert.equal(events.at(-1), "reveal");
+
+	completions.get("latest")();
+	await Promise.resolve();
+	controller.replace("complete", () => events.push("install:complete"));
+	assert.deepEqual(events.slice(-2), ["reveal", "install:complete"]);
+});
+
+test("makes late initial-animation completion harmless after cancellation", async () => {
+	const { createInitialAnimationController } = await loadTransitionGate();
+	const events = [];
+	const frames = [];
+	let complete;
+	const controller = createInitialAnimationController(
+		(value) => {
+			events.push(`animate:${value}`);
+			return new Promise((resolve) => {
+				complete = resolve;
+			});
+		},
+		() => events.push("hide"),
+		() => events.push("reveal"),
+		(run) => {
+			let active = true;
+			frames.push(() => {
+				if (active) run();
+			});
+			return () => {
+				active = false;
+			};
+		},
+	);
+
+	controller.replace("first", () => events.push("install:first"));
+	controller.start();
+	controller.cancel();
+	complete();
+	await Promise.resolve();
+	frames.shift()();
+	assert.deepEqual(events, ["hide", "install:first", "animate:first"]);
+});

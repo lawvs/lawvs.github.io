@@ -114,3 +114,73 @@ export function runBeforeStableFrame<T>(
 		cancelFrame();
 	};
 }
+
+export function createInitialAnimationController<T>(
+	animate: (current: T) => PromiseLike<unknown> | undefined,
+	hide: () => void,
+	reveal: () => void,
+	schedule: FrameScheduler = scheduleFrame,
+) {
+	type Current = { value: T };
+	type Phase = "waiting" | "active" | "complete" | "cancelled";
+
+	let phase: Phase = "waiting";
+	let current: Current | undefined;
+	let generation = 0;
+	let cancelReveal = noop;
+
+	const arm = (armed: Current) => {
+		const armedGeneration = ++generation;
+		cancelReveal();
+		const completion = animate(armed.value);
+		cancelReveal = schedule(() => {
+			if (
+				phase === "active" &&
+				current === armed &&
+				generation === armedGeneration
+			) {
+				reveal();
+			}
+		});
+
+		void Promise.resolve(completion).then(() => {
+			if (
+				phase !== "active" ||
+				current !== armed ||
+				generation !== armedGeneration
+			) {
+				return;
+			}
+			phase = "complete";
+			cancelReveal();
+			cancelReveal = noop;
+			reveal();
+		}, noop);
+	};
+
+	return {
+		replace(value: T, install: () => void) {
+			if (phase === "waiting" || phase === "active") {
+				hide();
+			}
+			install();
+			current = { value };
+			if (phase === "active") {
+				arm(current);
+			}
+		},
+		start() {
+			if (phase !== "waiting") return;
+			phase = "active";
+			if (current) arm(current);
+		},
+		cancel() {
+			if (phase === "cancelled") return;
+			phase = "cancelled";
+			current = undefined;
+			generation += 1;
+			cancelReveal();
+			cancelReveal = noop;
+		},
+	};
+}
