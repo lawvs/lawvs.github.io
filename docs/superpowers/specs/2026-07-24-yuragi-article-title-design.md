@@ -46,7 +46,12 @@ fetches. The existing text remains the fallback if that external fetch fails.
    the visual fallback after the SVG is ready.
 6. `ResizeObserver` rebuilds layout from the cached outline when the title
    width changes; it does not recompile the font.
-7. Swup-created article islands reuse browser and module caches.
+7. Swup-created article islands reuse browser and module caches. Because that
+   makes compilation nearly immediate, an island mounted while Swup's
+   `is-changing` class is active defers its initial settle animation until the
+   `swup:visit:end` DOM event. A normal page load animates immediately.
+8. The deferred callback reads the latest SVG produced by `ResizeObserver` and
+   is removed if the component unmounts before the visit ends.
 
 Mobile uses a 30px title size and desktop (`min-width: 768px`) uses 36px,
 matching the existing Tailwind classes. The SVG inherits the existing
@@ -55,9 +60,9 @@ light/dark `currentColor`.
 ## Accessibility and Search
 
 The title string remains in the SSR output with the existing Pagefind
-attributes. Once upgraded, the SVG is `aria-hidden`; the host keeps the title
-as its accessible name. Reduced-motion preferences are honored by Yuragi's
-animation helper.
+attributes. Once upgraded, the SVG is `aria-hidden`; the visually hidden
+fallback remains in the accessibility tree as the title text. Reduced-motion
+preferences are honored by Yuragi's animation helper.
 
 ## Error Handling
 
@@ -74,4 +79,7 @@ does not block article navigation or rendering.
   diagnostics.
 - A runtime smoke test compiles a mixed Chinese/Latin title with the selected
   font and packaged WASM.
-
+- A transition-gate unit test verifies that normal loads animate immediately
+  and Swup-mounted titles wait for the visit to finish.
+- A browser navigation smoke test verifies that the settle animation starts
+  after the Swup container becomes visible.

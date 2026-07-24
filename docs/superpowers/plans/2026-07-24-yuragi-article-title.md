@@ -286,3 +286,182 @@ git add docs package.json pnpm-lock.yaml test src/components/YuragiTitle.svelte 
   'src/pages/posts/[...slug].astro'
 git commit -m "feat: animate article titles with yuragi"
 ```
+
+### Task 4: Defer Swup-mounted title animation until the page is visible
+
+**Files:**
+- Create: `src/utils/yuragi-animation.ts`
+- Create: `test/yuragi-animation.test.mjs`
+- Modify: `src/components/YuragiTitle.svelte`
+- Modify: `package.json`
+
+**Interfaces:**
+- Consumes: `document.documentElement.classList`, the `swup:visit:end` DOM
+  event, and the most recently rendered Yuragi SVG
+- Produces: `runAfterPageTransition(run, gate)`, which returns a cleanup
+  callback and either runs immediately or after the current transition
+
+- [ ] **Step 1: Write the failing transition-gate test**
+
+Create `test/yuragi-animation.test.mjs`. Load the TypeScript helper through
+`typescript.transpileModule`, asserting clearly when the helper does not exist,
+then verify both scheduling branches:
+
+```js
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+import ts from "typescript";
+
+async function loadTransitionGate() {
+  const source = await readFile(
+    new URL("../src/utils/yuragi-animation.ts", import.meta.url),
+    "utf8",
+  ).catch(() => "");
+  assert.notEqual(source, "", "expected the Yuragi transition gate");
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
+}
+
+test("defers Yuragi animation until the active page transition ends", async () => {
+  const { runAfterPageTransition } = await loadTransitionGate();
+  let deferredRun;
+  let runs = 0;
+  let cleanups = 0;
+
+  const cleanup = runAfterPageTransition(
+    () => {
+      runs += 1;
+    },
+    {
+      isTransitioning: () => true,
+      onTransitionEnd: (run) => {
+        deferredRun = run;
+        return () => {
+          cleanups += 1;
+        };
+      },
+    },
+  );
+
+  assert.equal(runs, 0);
+  deferredRun();
+  assert.equal(runs, 1);
+  cleanup();
+  assert.equal(cleanups, 1);
+});
+
+test("runs Yuragi animation immediately outside a page transition", async () => {
+  const { runAfterPageTransition } = await loadTransitionGate();
+  let runs = 0;
+  let subscriptions = 0;
+
+  const cleanup = runAfterPageTransition(
+    () => {
+      runs += 1;
+    },
+    {
+      isTransitioning: () => false,
+      onTransitionEnd: () => {
+        subscriptions += 1;
+        return () => {};
+      },
+    },
+  );
+
+  assert.equal(runs, 1);
+  assert.equal(subscriptions, 0);
+  cleanup();
+});
+```
+
+Update `test:yuragi` to run both Yuragi test files:
+
+```json
+"test:yuragi": "node --test test/yuragi-title.test.mjs test/yuragi-animation.test.mjs"
+```
+
+- [ ] **Step 2: Run the test and verify RED**
+
+Run:
+
+```bash
+pnpm test:yuragi
+```
+
+Expected: the generated-site test passes and both transition-gate tests fail
+with `expected the Yuragi transition gate`.
+
+- [ ] **Step 3: Add the minimal transition gate**
+
+Create `src/utils/yuragi-animation.ts`:
+
+```ts
+export interface PageTransitionGate {
+  isTransitioning: () => boolean;
+  onTransitionEnd: (run: () => void) => () => void;
+}
+
+const noop = () => {};
+
+export function runAfterPageTransition(
+  run: () => void,
+  gate: PageTransitionGate,
+) {
+  if (!gate.isTransitioning()) {
+    run();
+    return noop;
+  }
+
+  return gate.onTransitionEnd(run);
+}
+```
+
+In `YuragiTitle.svelte`, retain the latest generated SVG. Schedule the first
+settle animation through `runAfterPageTransition`. Detect an active visit from
+the `is-changing` class and subscribe once to `swup:visit:end`; remove that
+listener during component cleanup.
+
+- [ ] **Step 4: Run tests and verify GREEN**
+
+Run:
+
+```bash
+pnpm test:yuragi
+```
+
+Expected: all three tests pass.
+
+- [ ] **Step 5: Verify the real Swup navigation**
+
+Run the headless Chrome navigation harness against the production preview.
+Expected: full-load animation begins with container opacity `1`; after Swup
+navigation, the first title animation call occurs only after `visit:end`, also
+with container opacity `1`.
+
+- [ ] **Step 6: Verify and commit**
+
+Run:
+
+```bash
+pnpm exec biome check src/utils/yuragi-animation.ts \
+  src/components/YuragiTitle.svelte test/yuragi-animation.test.mjs
+pnpm build
+pnpm check
+```
+
+Expected: Biome and build pass; `pnpm check` reports exactly the six baseline
+errors and no Yuragi diagnostics.
+
+Commit:
+
+```bash
+git add docs package.json src/components/YuragiTitle.svelte \
+  src/utils/yuragi-animation.ts test/yuragi-animation.test.mjs
+git commit -m "fix: replay yuragi title animation after swup"
+```
