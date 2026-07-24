@@ -172,7 +172,7 @@ test("warms the Yuragi font without compiling fallback titles", async () => {
 			});
 		},
 		"title",
-		false,
+		() => false,
 	);
 
 	assert.equal(outline, undefined);
@@ -186,7 +186,7 @@ test("handles rejected fallback font warmups without compiling", async () => {
 	const outline = await loadTitleOutlineIfEnhancing(
 		() => Promise.reject(new Error("font unavailable")),
 		"title",
-		false,
+		() => false,
 	);
 
 	await Promise.resolve();
@@ -206,11 +206,74 @@ test("compiles Yuragi titles selected for enhancement", async () => {
 				},
 			}),
 		"title",
-		true,
+		() => true,
 	);
 
 	assert.equal(outline, "outline:title");
 	assert.equal(compiles, 1);
+});
+
+test("skips compilation when enhancement falls back before the font resolves", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
+	let resolveFont;
+	let isEnhancing = true;
+	let compiles = 0;
+
+	const outline = loadTitleOutlineIfEnhancing(
+		() =>
+			new Promise((resolve) => {
+				resolveFont = resolve;
+			}),
+		"title",
+		() => isEnhancing,
+	);
+
+	isEnhancing = false;
+	resolveFont({
+		compile: () => {
+			compiles += 1;
+			return Promise.resolve("outline");
+		},
+	});
+
+	assert.equal(await outline, undefined);
+	assert.equal(compiles, 0);
+});
+
+test("handles a late font rejection after enhancement falls back", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
+	let rejectFont;
+	let isEnhancing = true;
+
+	const outline = loadTitleOutlineIfEnhancing(
+		() =>
+			new Promise((_, reject) => {
+				rejectFont = reject;
+			}),
+		"title",
+		() => isEnhancing,
+	);
+
+	isEnhancing = false;
+	rejectFont(new Error("font unavailable"));
+
+	assert.equal(await outline, undefined);
+});
+
+test("propagates compilation failures while enhancement is pending", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
+
+	await assert.rejects(
+		loadTitleOutlineIfEnhancing(
+			() =>
+				Promise.resolve({
+					compile: () => Promise.reject(new Error("compile failed")),
+				}),
+			"title",
+			() => true,
+		),
+		/compile failed/,
+	);
 });
 
 test("hides and re-arms a same-frame replacement after reveal", async () => {

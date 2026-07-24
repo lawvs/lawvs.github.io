@@ -66,14 +66,15 @@ export function shouldStartTitleEnhancement(
 export function loadTitleOutlineIfEnhancing<T>(
 	loadFont: () => Promise<{ compile: (text: string) => Promise<T> }>,
 	text: string,
-	shouldCompile: boolean,
+	shouldCompile: () => boolean,
 ) {
-	const font = loadFont();
-	if (!shouldCompile) {
-		void font.catch(noop);
-		return Promise.resolve<T | undefined>(undefined);
-	}
-	return font.then((loaded) => loaded.compile(text));
+	return loadFont().then(
+		(loaded) => (shouldCompile() ? loaded.compile(text) : undefined),
+		(error: unknown) => {
+			if (shouldCompile()) throw error;
+			return undefined;
+		},
+	);
 }
 
 export function runAfterPageTransition(
