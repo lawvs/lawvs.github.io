@@ -193,7 +193,7 @@ onMount(() => {
 	void loadTitleOutlineIfEnhancing(
 		getFont,
 		text,
-		() => enhancementState === "pending",
+		() => !disposed && enhancementState === "pending",
 	)
 		.then((compiled) => {
 			if (compiled === undefined || disposed) return;

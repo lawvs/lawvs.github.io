@@ -260,6 +260,43 @@ test("handles a late font rejection after enhancement falls back", async () => {
 	assert.equal(await outline, undefined);
 });
 
+test("skips deferred compilation after the title component is disposed", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
+	const componentSource = await readFile(
+		new URL("../src/components/YuragiTitle.svelte", import.meta.url),
+		"utf8",
+	);
+	let resolveFont;
+	let disposed = false;
+	const enhancementState = "pending";
+	let compiles = 0;
+
+	const outline = loadTitleOutlineIfEnhancing(
+		() =>
+			new Promise((resolve) => {
+				resolveFont = resolve;
+			}),
+		"title",
+		() => !disposed && enhancementState === "pending",
+	);
+
+	disposed = true;
+	resolveFont({
+		compile: () => {
+			compiles += 1;
+			return Promise.resolve("outline");
+		},
+	});
+
+	assert.equal(await outline, undefined);
+	assert.equal(compiles, 0);
+	assert.match(
+		componentSource,
+		/loadTitleOutlineIfEnhancing\(\s*getFont,\s*text,\s*\(\)\s*=>\s*!disposed\s*&&\s*enhancementState\s*===\s*"pending",?\s*\)/,
+		"expected the component compile predicate to include its live disposed state",
+	);
+});
+
 test("propagates compilation failures while enhancement is pending", async () => {
 	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
 
