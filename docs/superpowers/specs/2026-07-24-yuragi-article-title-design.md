@@ -18,9 +18,12 @@ RSS, and article content remain unchanged.
 - Treat the six existing `astro check` errors as baseline; do not fix them or
   add new diagnostics.
 - A failed font or WASM load must leave the original title visible.
-- A cold title enhancement gets a 300 ms budget after hydration. If no
-  renderable SVG is ready by then, keep the original title for that visit and
-  do not replace it later.
+- Do not hide a title that has already reached first contentful paint while
+  its page container is visible. In that case, keep the original title for
+  that visit and only warm the shared font promise.
+- A title that is still safe to enhance gets a 300 ms monotonic wall-clock
+  budget after hydration. If no renderable SVG is ready by then, keep the
+  original title for that visit and do not replace it later.
 
 ## Architecture
 
@@ -45,22 +48,27 @@ fetches. The existing text remains the fallback if that external fetch fails.
 2. `client:load` hydrates the title without blocking the rest of the page.
 3. A module-level promise loads the 611,458-byte WASM asset and the font once.
 4. Yuragi compiles the article title into an outline.
-5. Hydration starts a 300 ms animation budget and makes the fallback visually
-   transparent while preserving its layout and accessible text.
-6. If compilation and SVG creation finish inside that budget, the component
+5. Hydration first checks whether the incoming page is still hidden by a Swup
+   transition or the document has not reached first contentful paint. If
+   neither is true, the title remains visible and the island only warms the
+   shared font promise.
+6. A safe enhancement starts a 300 ms monotonic wall-clock budget and makes
+   the fallback immediately transparent while preserving its layout and
+   accessible text.
+7. If compilation and SVG creation finish inside that budget, the component
    claims the budget, installs the SVG, and hides the fallback semantically.
-   If the budget expires first, the fallback becomes visible again and that
-   island ignores the late compile result.
-7. The remote font request is not canceled on expiry, so later article
+   If the budget expires first, the fallback becomes immediately visible
+   again and that island ignores the late compile result.
+8. The remote font request is not canceled on expiry, so later article
    navigations can reuse the warmed module-level font promise.
-8. `ResizeObserver` rebuilds layout from the cached outline when the title
+9. `ResizeObserver` rebuilds layout from the cached outline when the title
    width changes; it does not recompile the font.
-9. Swup-created article islands reuse browser and module caches. Because that
+10. Swup-created article islands reuse browser and module caches. Because that
    makes compilation nearly immediate, an island mounted while the incoming
    `#swup-container` has computed opacity below `1` defers its initial settle
    animation until that container's opacity transition ends. A normal page
-   load animates immediately.
-10. The deferred callback reads the latest SVG produced by `ResizeObserver` and
+   load only animates when hydration wins the first-contentful-paint race.
+11. The deferred callback reads the latest SVG produced by `ResizeObserver` and
    is removed if the component unmounts before the visit ends.
 
 Mobile uses a 30px title size and desktop (`min-width: 768px`) uses 36px,
@@ -80,7 +88,9 @@ Font loading, WASM loading, title compilation, and SVG creation are all
 progressive enhancement. Any rejection leaves the fallback text visible and
 does not block article navigation or rendering. Expiring the 300 ms budget is
 not an error: it selects the stable fallback for that island and prevents a
-late full-title-to-animation reversal.
+late full-title-to-animation reversal. A synchronous failure during an initial
+or responsive SVG render also cancels deferred animation work, clears the SVG,
+and restores the fallback.
 
 ## Verification
 
@@ -96,6 +106,10 @@ late full-title-to-animation reversal.
 - A browser navigation smoke test verifies that the settle animation starts
   after the Swup container becomes visible.
 - Animation-budget unit tests verify that a fast result can claim the budget,
-  while expiry restores the fallback and rejects a late claim.
+  while timer expiry and an overdue wall-clock claim both restore the fallback
+  and reject a late result.
+- An enhancement-start unit test verifies that a visible title which has
+  already reached first contentful paint is not hidden, while a Swup-hidden
+  incoming title remains eligible.
 - A cold-browser smoke test verifies that a delayed font never replaces a
   fallback after the 300 ms budget.

@@ -474,10 +474,12 @@ git commit -m "fix: replay yuragi title animation after swup"
 - Modify: `test/yuragi-animation.test.mjs`
 
 **Interfaces:**
-- Consumes: a 300 ms deadline, an expiry callback, and an injectable timeout
-  scheduler
-- Produces: `createAnimationBudget(durationMs, onExpire, schedule?)`, returning
-  `{ claim(): boolean; cancel(): void }`
+- Consumes: a 300 ms deadline, an expiry callback, an injectable timeout
+  scheduler, and an injectable monotonic clock
+- Produces:
+  `createAnimationBudget(durationMs, onExpire, schedule?, now?)`, returning
+  `{ claim(): boolean; cancel(): void }`, plus
+  `shouldStartTitleEnhancement(isTransitioning, hasFirstContentfulPaint)`
 
 - [ ] **Step 1: Add failing animation-budget tests**
 
@@ -531,6 +533,10 @@ test("expires a Yuragi animation budget and rejects a late claim", async () => {
 });
 ```
 
+Also add a delayed-timer test that advances the injected clock past the
+deadline before `claim()`, and a start-policy test covering pre-paint,
+already-painted, unsupported paint timing, and hidden Swup containers.
+
 - [ ] **Step 2: Run the tests and verify RED**
 
 Run:
@@ -539,8 +545,8 @@ Run:
 pnpm test:yuragi
 ```
 
-Expected: the three existing tests pass and the two new tests fail because
-`createAnimationBudget` is not exported.
+Expected: the existing tests pass and the new tests fail because the budget,
+elapsed-time enforcement, and enhancement-start policy are not implemented.
 
 - [ ] **Step 3: Implement the animation budget**
 
@@ -551,6 +557,7 @@ export type TimeoutScheduler = (
   run: () => void,
   delayMs: number,
 ) => () => void;
+export type MonotonicClock = () => number;
 
 const scheduleTimeout: TimeoutScheduler = (run, delayMs) => {
   const timeout = setTimeout(run, delayMs);
@@ -561,17 +568,25 @@ export function createAnimationBudget(
   durationMs: number,
   onExpire: () => void,
   schedule: TimeoutScheduler = scheduleTimeout,
+  now: MonotonicClock = () => performance.now(),
 ) {
   let active = true;
-  const cancelTimeout = schedule(() => {
+  const deadline = now() + durationMs;
+  const expire = () => {
     if (!active) return;
     active = false;
     onExpire();
-  }, durationMs);
+  };
+  const cancelTimeout = schedule(expire, durationMs);
 
   return {
     claim() {
       if (!active) return false;
+      if (now() >= deadline) {
+        cancelTimeout();
+        expire();
+        return false;
+      }
       active = false;
       cancelTimeout();
       return true;
@@ -582,6 +597,13 @@ export function createAnimationBudget(
       cancelTimeout();
     },
   };
+}
+
+export function shouldStartTitleEnhancement(
+  isPageTransitioning: boolean,
+  hasFirstContentfulPaint: boolean | undefined,
+) {
+  return isPageTransitioning || hasFirstContentfulPaint === false;
 }
 ```
 
@@ -595,11 +617,15 @@ const ANIMATION_BUDGET_MS = 300;
 let enhancementState: EnhancementState = "fallback";
 ```
 
-On mount, set `enhancementState = "pending"` and create a budget whose expiry
-restores `"fallback"`. Only install the first SVG if the state is `"pending"`
-and `budget.claim()` succeeds. Continue allowing responsive SVG rebuilds in
-the `"ready"` state; ignore render attempts in `"fallback"`. Cancel the budget
-during unmount and select `"fallback"` on compilation or rendering failure.
+On mount, only enter `"pending"` when the page container is hidden by Swup or
+first contentful paint has not happened. If the visible title has already
+painted, keep `"fallback"` throughout that visit while still warming the
+shared font promise. A pending title creates a budget whose expiry restores
+`"fallback"`. Only install the first SVG when `budget.claim()` succeeds.
+Continue allowing responsive SVG rebuilds in the `"ready"` state; ignore
+render attempts in `"fallback"`. Catch synchronous initial and responsive
+render failures, clear the SVG, cancel deferred animation work, and restore
+the fallback. Cancel the budget during unmount.
 
 Render the fallback with:
 
@@ -613,6 +639,10 @@ Render the fallback with:
 Preserve layout and accessibility while pending:
 
 ```css
+.fallback-text {
+  transition: none;
+}
+
 .pending {
   opacity: 0;
 }
@@ -627,9 +657,13 @@ pnpm test:yuragi
 pnpm build
 ```
 
-Use a cold Chrome profile with the font request delayed beyond 300 ms.
-Expected: fallback opacity returns to `1` at the deadline, no SVG or shard
+Use a cold Chrome profile with hydration delayed until after first contentful
+paint. Expected: the fallback never becomes transparent, no SVG or shard
 animation appears afterward, and the font request may still finish.
+
+Use a cold Swup navigation with the font request delayed beyond 300 ms.
+Expected: the hidden incoming title becomes a stable fallback at the deadline
+and a late font response does not insert an SVG or play an animation.
 
 Use a warm Chrome navigation.
 Expected: the fallback remains visually hidden and the title animates after

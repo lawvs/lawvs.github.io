@@ -21,12 +21,20 @@ import {
 } from "@yuragi-labs/core";
 import "@yuragi-labs/core/style.css";
 import { onMount } from "svelte";
-import { runAfterPageTransition } from "../utils/yuragi-animation";
+import {
+	createAnimationBudget,
+	runAfterPageTransition,
+	shouldStartTitleEnhancement,
+} from "../utils/yuragi-animation";
 
 export let text: string;
 
+type EnhancementState = "fallback" | "pending" | "ready";
+
+const ANIMATION_BUDGET_MS = 300;
+
 let svgHost: HTMLSpanElement;
-let ready = false;
+let enhancementState: EnhancementState = "fallback";
 
 onMount(() => {
 	let disposed = false;
@@ -37,9 +45,41 @@ onMount(() => {
 	let cancelInitialSettle = () => {};
 	const media = window.matchMedia("(min-width: 768px)");
 	const swupContainer = svgHost.closest("#swup-container");
+	const isPageTransitioning = () =>
+		swupContainer !== null &&
+		Number.parseFloat(getComputedStyle(swupContainer).opacity) < 1;
+	const hasFirstContentfulPaint =
+		"PerformancePaintTiming" in window
+			? performance.getEntriesByName("first-contentful-paint", "paint").length > 0
+			: undefined;
+	let animationBudget: ReturnType<typeof createAnimationBudget> | undefined;
 
-	function render() {
-		if (!outline || disposed) return;
+	function selectFallback() {
+		animationBudget?.cancel();
+		cancelInitialSettle();
+		cancelInitialSettle = () => {};
+		currentSvg = undefined;
+		svgHost.replaceChildren();
+		enhancementState = "fallback";
+	}
+
+	if (
+		shouldStartTitleEnhancement(
+			isPageTransitioning(),
+			hasFirstContentfulPaint,
+		)
+	) {
+		enhancementState = "pending";
+		animationBudget = createAnimationBudget(
+			ANIMATION_BUDGET_MS,
+			() => {
+				if (!disposed) selectFallback();
+			},
+		);
+	}
+
+	function renderSvg() {
+		if (!outline || disposed || enhancementState === "fallback") return;
 
 		const maxWidth = svgHost.clientWidth;
 		if (maxWidth <= 0) return;
@@ -50,9 +90,15 @@ onMount(() => {
 		});
 		const svg = createShardedSvg(layout);
 		svg.setAttribute("aria-hidden", "true");
+		if (
+			enhancementState === "pending" &&
+			animationBudget?.claim() !== true
+		) {
+			return;
+		}
 		svgHost.replaceChildren(svg);
 		currentSvg = svg;
-		ready = true;
+		enhancementState = "ready";
 
 		if (!hasScheduledInitialSettle) {
 			hasScheduledInitialSettle = true;
@@ -65,9 +111,7 @@ onMount(() => {
 					});
 				},
 				{
-					isTransitioning: () =>
-						swupContainer !== null &&
-						Number.parseFloat(getComputedStyle(swupContainer).opacity) < 1,
+					isTransitioning: isPageTransitioning,
 					onTransitionEnd: (run) => {
 						if (!swupContainer) {
 							run();
@@ -112,6 +156,14 @@ onMount(() => {
 		}
 	}
 
+	function render() {
+		try {
+			renderSvg();
+		} catch {
+			selectFallback();
+		}
+	}
+
 	function scheduleRender() {
 		if (frame !== undefined) cancelAnimationFrame(frame);
 		frame = requestAnimationFrame(render);
@@ -128,11 +180,15 @@ onMount(() => {
 			outline = compiled;
 			render();
 		})
-		.catch(() => undefined);
+		.catch(() => {
+			if (disposed) return;
+			selectFallback();
+		});
 
 	return () => {
 		disposed = true;
 		if (frame !== undefined) cancelAnimationFrame(frame);
+		animationBudget?.cancel();
 		cancelInitialSettle();
 		observer.disconnect();
 		media.removeEventListener("change", scheduleRender);
@@ -149,11 +205,23 @@ onMount(() => {
 	data-pagefind-meta="title"
 	data-yuragi-title
 >
-	<span class:visually-hidden={ready}>{text}</span>
+	<span
+		class="fallback-text"
+		class:pending={enhancementState === "pending"}
+		class:visually-hidden={enhancementState === "ready"}>{text}</span
+	>
 	<span bind:this={svgHost} class="svg-host" aria-hidden="true"></span>
 </span>
 
 <style>
+.fallback-text {
+	transition: none;
+}
+
+.pending {
+	opacity: 0;
+}
+
 .svg-host {
 	display: block;
 	width: 100%;
