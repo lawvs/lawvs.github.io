@@ -5,12 +5,18 @@ export interface PageTransitionGate {
 
 export type TimeoutScheduler = (run: () => void, delayMs: number) => () => void;
 export type MonotonicClock = () => number;
+export type FrameScheduler = (run: () => void) => () => void;
 
 const noop = () => {};
 
 const scheduleTimeout: TimeoutScheduler = (run, delayMs) => {
 	const timeout = setTimeout(run, delayMs);
 	return () => clearTimeout(timeout);
+};
+
+const scheduleFrame: FrameScheduler = (run) => {
+	const frame = requestAnimationFrame(run);
+	return () => cancelAnimationFrame(frame);
 };
 
 const readNow: MonotonicClock = () => performance.now();
@@ -67,4 +73,13 @@ export function runAfterPageTransition(
 	}
 
 	return gate.onTransitionEnd(run);
+}
+
+export function runBeforeNextFrame(
+	run: () => void,
+	afterFrame: () => void,
+	schedule: FrameScheduler = scheduleFrame,
+) {
+	run();
+	return schedule(afterFrame);
 }

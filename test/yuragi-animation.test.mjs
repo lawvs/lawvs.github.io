@@ -155,3 +155,46 @@ test("only starts title enhancement before paint or during a page transition", a
 	assert.equal(shouldStartTitleEnhancement(false, true), false);
 	assert.equal(shouldStartTitleEnhancement(false, undefined), false);
 });
+
+test("arms Yuragi animation before revealing it on the next frame", async () => {
+	const { runBeforeNextFrame } = await loadTransitionGate();
+	const events = [];
+	let nextFrame;
+
+	runBeforeNextFrame(
+		() => events.push("animate"),
+		() => events.push("reveal"),
+		(run) => {
+			nextFrame = run;
+			return () => {};
+		},
+	);
+
+	assert.deepEqual(events, ["animate"]);
+	nextFrame();
+	assert.deepEqual(events, ["animate", "reveal"]);
+});
+
+test("cancels a pending Yuragi reveal", async () => {
+	const { runBeforeNextFrame } = await loadTransitionGate();
+	const events = [];
+	let nextFrame;
+	let active = true;
+
+	const cleanup = runBeforeNextFrame(
+		() => events.push("animate"),
+		() => events.push("reveal"),
+		(run) => {
+			nextFrame = () => {
+				if (active) run();
+			};
+			return () => {
+				active = false;
+			};
+		},
+	);
+
+	cleanup();
+	nextFrame();
+	assert.deepEqual(events, ["animate"]);
+});

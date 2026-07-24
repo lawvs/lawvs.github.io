@@ -24,6 +24,7 @@ import { onMount } from "svelte";
 import {
 	createAnimationBudget,
 	runAfterPageTransition,
+	runBeforeNextFrame,
 	shouldStartTitleEnhancement,
 } from "../utils/yuragi-animation";
 
@@ -35,6 +36,7 @@ const ANIMATION_BUDGET_MS = 300;
 
 let svgHost: HTMLSpanElement;
 let enhancementState: EnhancementState = "fallback";
+let svgVisible = false;
 
 onMount(() => {
 	let disposed = false;
@@ -43,6 +45,7 @@ onMount(() => {
 	let frame: number | undefined;
 	let hasScheduledInitialSettle = false;
 	let cancelInitialSettle = () => {};
+	let cancelPendingReveal = () => {};
 	const media = window.matchMedia("(min-width: 768px)");
 	const swupContainer = svgHost.closest("#swup-container");
 	const isPageTransitioning = () =>
@@ -58,6 +61,9 @@ onMount(() => {
 		animationBudget?.cancel();
 		cancelInitialSettle();
 		cancelInitialSettle = () => {};
+		cancelPendingReveal();
+		cancelPendingReveal = () => {};
+		svgVisible = false;
 		currentSvg = undefined;
 		svgHost.replaceChildren();
 		enhancementState = "fallback";
@@ -96,6 +102,9 @@ onMount(() => {
 		) {
 			return;
 		}
+		if (enhancementState === "pending") {
+			svgVisible = false;
+		}
 		svgHost.replaceChildren(svg);
 		currentSvg = svg;
 		enhancementState = "ready";
@@ -105,10 +114,18 @@ onMount(() => {
 			cancelInitialSettle = runAfterPageTransition(
 				() => {
 					if (disposed || !currentSvg) return;
-					void animateShards(currentSvg, {
-						type: "settle",
-						stagger: "by-x",
-					});
+					const svg = currentSvg;
+					cancelPendingReveal = runBeforeNextFrame(
+						() => {
+							void animateShards(svg, {
+								type: "settle",
+								stagger: "by-x",
+							});
+						},
+						() => {
+							if (!disposed) svgVisible = true;
+						},
+					);
 				},
 				{
 					isTransitioning: isPageTransitioning,
@@ -190,6 +207,7 @@ onMount(() => {
 		if (frame !== undefined) cancelAnimationFrame(frame);
 		animationBudget?.cancel();
 		cancelInitialSettle();
+		cancelPendingReveal();
 		observer.disconnect();
 		media.removeEventListener("change", scheduleRender);
 	};
@@ -210,7 +228,12 @@ onMount(() => {
 		class:pending={enhancementState === "pending"}
 		class:visually-hidden={enhancementState === "ready"}>{text}</span
 	>
-	<span bind:this={svgHost} class="svg-host" aria-hidden="true"></span>
+	<span
+		bind:this={svgHost}
+		class="svg-host"
+		class:pending-reveal={!svgVisible}
+		aria-hidden="true"
+	></span>
 </span>
 
 <style>
@@ -225,6 +248,10 @@ onMount(() => {
 .svg-host {
 	display: block;
 	width: 100%;
+}
+
+.pending-reveal {
+	visibility: hidden;
 }
 
 .svg-host :global(svg) {
