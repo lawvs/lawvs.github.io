@@ -24,7 +24,7 @@ import { onMount } from "svelte";
 import {
 	createAnimationBudget,
 	runAfterPageTransition,
-	runBeforeNextFrame,
+	runBeforeStableFrame,
 	shouldStartTitleEnhancement,
 } from "../utils/yuragi-animation";
 
@@ -114,16 +114,17 @@ onMount(() => {
 			cancelInitialSettle = runAfterPageTransition(
 				() => {
 					if (disposed || !currentSvg) return;
-					const svg = currentSvg;
-					cancelPendingReveal = runBeforeNextFrame(
-						() => {
+					cancelPendingReveal = runBeforeStableFrame(
+						() => currentSvg,
+						(svg) => {
+							if (!svg) return;
 							void animateShards(svg, {
 								type: "settle",
 								stagger: "by-x",
 							});
 						},
-						() => {
-							if (!disposed) svgVisible = true;
+						(svg) => {
+							if (!disposed && svg) svgVisible = true;
 						},
 					);
 				},

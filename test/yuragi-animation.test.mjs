@@ -198,3 +198,72 @@ test("cancels a pending Yuragi reveal", async () => {
 	nextFrame();
 	assert.deepEqual(events, ["animate"]);
 });
+
+test("re-arms replacement values before revealing stable Yuragi content", async () => {
+	const { runBeforeStableFrame } = await loadTransitionGate();
+	const events = [];
+	const frames = [];
+	let current = "first";
+
+	runBeforeStableFrame(
+		() => current,
+		(value) => events.push(`animate:${value}`),
+		(value) => events.push(`reveal:${value}`),
+		(run) => {
+			let active = true;
+			frames.push(() => {
+				if (active) run();
+			});
+			return () => {
+				active = false;
+			};
+		},
+	);
+
+	assert.deepEqual(events, ["animate:first"]);
+	current = "replacement";
+	frames.shift()();
+	assert.deepEqual(events, ["animate:first", "animate:replacement"]);
+	current = "latest";
+	frames.shift()();
+	assert.deepEqual(events, [
+		"animate:first",
+		"animate:replacement",
+		"animate:latest",
+	]);
+	frames.shift()();
+	assert.deepEqual(events, [
+		"animate:first",
+		"animate:replacement",
+		"animate:latest",
+		"reveal:latest",
+	]);
+});
+
+test("cancels the whole pending stable-frame sequence", async () => {
+	const { runBeforeStableFrame } = await loadTransitionGate();
+	const events = [];
+	const frames = [];
+	let current = "first";
+
+	const cleanup = runBeforeStableFrame(
+		() => current,
+		(value) => events.push(`animate:${value}`),
+		(value) => events.push(`reveal:${value}`),
+		(run) => {
+			let active = true;
+			frames.push(() => {
+				if (active) run();
+			});
+			return () => {
+				active = false;
+			};
+		},
+	);
+
+	current = "replacement";
+	frames.shift()();
+	cleanup();
+	frames.shift()();
+	assert.deepEqual(events, ["animate:first", "animate:replacement"]);
+});

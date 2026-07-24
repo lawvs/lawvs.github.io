@@ -83,3 +83,34 @@ export function runBeforeNextFrame(
 	run();
 	return schedule(afterFrame);
 }
+
+export function runBeforeStableFrame<T>(
+	readCurrent: () => T,
+	run: (current: T) => void,
+	afterFrame: (current: T) => void,
+	schedule: FrameScheduler = scheduleFrame,
+) {
+	let active = true;
+	let cancelFrame = noop;
+
+	const arm = () => {
+		const current = readCurrent();
+		run(current);
+		cancelFrame = schedule(() => {
+			if (!active) return;
+			if (readCurrent() !== current) {
+				arm();
+				return;
+			}
+			active = false;
+			afterFrame(current);
+		});
+	};
+
+	arm();
+	return () => {
+		if (!active) return;
+		active = false;
+		cancelFrame();
+	};
+}
