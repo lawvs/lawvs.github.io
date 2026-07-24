@@ -68,8 +68,17 @@ fetches. The existing text remains the fallback if that external fetch fails.
    `#swup-container` has computed opacity below `1` defers its initial settle
    animation until that container's opacity transition ends. A normal page
    load only animates when hydration wins the first-contentful-paint race.
-11. The deferred callback reads the latest SVG produced by `ResizeObserver` and
-   is removed if the component unmounts before the visit ends.
+11. A newly installed SVG remains `visibility: hidden` while the initial
+   settle animation is deferred. This prevents its default, fully settled
+   paths from appearing during the Swup fade-in.
+12. When the page-transition gate opens, the component calls
+   `animateShards()` first. Yuragi installs the free-position keyframes
+   synchronously; the component reveals the SVG on the next animation frame,
+   so the first visible SVG state belongs to the animation rather than the
+   completed title.
+13. The deferred callback reads the latest SVG produced by `ResizeObserver`.
+   Its transition listener and pending reveal frame are canceled if the
+   component unmounts or falls back before the visit ends.
 
 Mobile uses a 30px title size and desktop (`min-width: 768px`) uses 36px,
 matching the existing Tailwind classes. The SVG inherits the existing
@@ -90,7 +99,7 @@ does not block article navigation or rendering. Expiring the 300 ms budget is
 not an error: it selects the stable fallback for that island and prevents a
 late full-title-to-animation reversal. A synchronous failure during an initial
 or responsive SVG render also cancels deferred animation work, clears the SVG,
-and restores the fallback.
+cancels any pending reveal frame, and restores the fallback.
 
 ## Verification
 
@@ -104,7 +113,10 @@ and restores the fallback.
 - A transition-gate unit test verifies that normal loads animate immediately
   and Swup-mounted titles wait for the visit to finish.
 - A browser navigation smoke test verifies that the settle animation starts
-  after the Swup container becomes visible.
+  after the Swup container becomes visible, and that no fully settled SVG is
+  visible before the first shard animation call.
+- A reveal-order unit test verifies that the animation is armed before the
+  next-frame reveal and that cleanup cancels a pending reveal.
 - Animation-budget unit tests verify that a fast result can claim the budget,
   while timer expiry and an overdue wall-clock claim both restore the fallback
   and reject a late result.
