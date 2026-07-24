@@ -296,8 +296,8 @@ git commit -m "feat: animate article titles with yuragi"
 - Modify: `package.json`
 
 **Interfaces:**
-- Consumes: `document.documentElement.classList`, the `swup:visit:end` DOM
-  event, and the most recently rendered Yuragi SVG
+- Consumes: the `#swup-container` computed opacity and `transitionend` event,
+  plus the most recently rendered Yuragi SVG
 - Produces: `runAfterPageTransition(run, gate)`, which returns a cleanup
   callback and either runs immediately or after the current transition
 
@@ -423,9 +423,9 @@ export function runAfterPageTransition(
 ```
 
 In `YuragiTitle.svelte`, retain the latest generated SVG. Schedule the first
-settle animation through `runAfterPageTransition`. Detect an active visit from
-the `is-changing` class and subscribe once to `swup:visit:end`; remove that
-listener during component cleanup.
+settle animation through `runAfterPageTransition`. Detect an active transition
+from the incoming `#swup-container` opacity and wait for its opacity
+`transitionend`; remove that listener during component cleanup.
 
 - [ ] **Step 4: Run tests and verify GREEN**
 
@@ -441,8 +441,8 @@ Expected: all three tests pass.
 
 Run the headless Chrome navigation harness against the production preview.
 Expected: full-load animation begins with container opacity `1`; after Swup
-navigation, the first title animation call occurs only after `visit:end`, also
-with container opacity `1`.
+navigation, the first title animation call occurs only after the incoming
+container's opacity transition ends, also with container opacity `1`.
 
 - [ ] **Step 6: Verify and commit**
 

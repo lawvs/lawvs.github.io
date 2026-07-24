@@ -47,9 +47,10 @@ fetches. The existing text remains the fallback if that external fetch fails.
 6. `ResizeObserver` rebuilds layout from the cached outline when the title
    width changes; it does not recompile the font.
 7. Swup-created article islands reuse browser and module caches. Because that
-   makes compilation nearly immediate, an island mounted while Swup's
-   `is-changing` class is active defers its initial settle animation until the
-   `swup:visit:end` DOM event. A normal page load animates immediately.
+   makes compilation nearly immediate, an island mounted while the incoming
+   `#swup-container` has computed opacity below `1` defers its initial settle
+   animation until that container's opacity transition ends. A normal page
+   load animates immediately.
 8. The deferred callback reads the latest SVG produced by `ResizeObserver` and
    is removed if the component unmounts before the visit ends.
 

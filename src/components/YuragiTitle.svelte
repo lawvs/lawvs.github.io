@@ -21,6 +21,7 @@ import {
 } from "@yuragi-labs/core";
 import "@yuragi-labs/core/style.css";
 import { onMount } from "svelte";
+import { runAfterPageTransition } from "../utils/yuragi-animation";
 
 export let text: string;
 
@@ -30,9 +31,12 @@ let ready = false;
 onMount(() => {
 	let disposed = false;
 	let outline: TextOutline | undefined;
+	let currentSvg: SVGSVGElement | undefined;
 	let frame: number | undefined;
-	let hasPlayedInitialSettle = false;
+	let hasScheduledInitialSettle = false;
+	let cancelInitialSettle = () => {};
 	const media = window.matchMedia("(min-width: 768px)");
+	const swupContainer = svgHost.closest("#swup-container");
 
 	function render() {
 		if (!outline || disposed) return;
@@ -47,14 +51,64 @@ onMount(() => {
 		const svg = createShardedSvg(layout);
 		svg.setAttribute("aria-hidden", "true");
 		svgHost.replaceChildren(svg);
+		currentSvg = svg;
 		ready = true;
 
-		if (!hasPlayedInitialSettle) {
-			hasPlayedInitialSettle = true;
-			void animateShards(svg, {
-				type: "settle",
-				stagger: "by-x",
-			});
+		if (!hasScheduledInitialSettle) {
+			hasScheduledInitialSettle = true;
+			cancelInitialSettle = runAfterPageTransition(
+				() => {
+					if (disposed || !currentSvg) return;
+					void animateShards(currentSvg, {
+						type: "settle",
+						stagger: "by-x",
+					});
+				},
+				{
+					isTransitioning: () =>
+						swupContainer !== null &&
+						Number.parseFloat(getComputedStyle(swupContainer).opacity) < 1,
+					onTransitionEnd: (run) => {
+						if (!swupContainer) {
+							run();
+							return () => {};
+						}
+
+						let completed = false;
+						const cleanup = () =>
+							swupContainer.removeEventListener(
+								"transitionend",
+								handleTransitionEnd,
+							);
+						const finish = () => {
+							if (completed) return;
+							completed = true;
+							cleanup();
+							run();
+						};
+						const handleTransitionEnd = (event: TransitionEvent) => {
+							if (
+								event.target === swupContainer &&
+								event.propertyName === "opacity"
+							) {
+								finish();
+							}
+						};
+
+						swupContainer.addEventListener(
+							"transitionend",
+							handleTransitionEnd,
+						);
+						if (
+							Number.parseFloat(getComputedStyle(swupContainer).opacity) >= 1
+						) {
+							finish();
+						}
+
+						return cleanup;
+					},
+				},
+			);
 		}
 	}
 
@@ -79,6 +133,7 @@ onMount(() => {
 	return () => {
 		disposed = true;
 		if (frame !== undefined) cancelAnimationFrame(frame);
+		cancelInitialSettle();
 		observer.disconnect();
 		media.removeEventListener("change", scheduleRender);
 	};
