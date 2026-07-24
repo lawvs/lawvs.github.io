@@ -23,3 +23,15 @@ test("article title keeps scoped fallback text and packages the Yuragi compiler"
 	assert.ok(wasm, "expected a packaged Yuragi compiler WASM asset");
 	assert.ok((await stat(new URL(wasm, assetDirectory))).size > 0);
 });
+
+test("keeps the Yuragi WASM entry out of Vite dependency optimization", async () => {
+	const config = await readFile(
+		new URL("../astro.config.mjs", import.meta.url),
+		"utf8",
+	);
+
+	assert.match(
+		config,
+		/optimizeDeps:\s*\{[\s\S]*?exclude:\s*\[[\s\S]*?["']@yuragi-labs\/core\/wasm["'][\s\S]*?\][\s\S]*?\}/,
+	);
+});
