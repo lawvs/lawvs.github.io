@@ -1,10 +1,5 @@
-export interface PageTransitionGate {
-	isTransitioning: () => boolean;
-	onTransitionEnd: (run: () => void) => () => void;
-}
-
-export type TimeoutScheduler = (run: () => void, delayMs: number) => () => void;
-export type MonotonicClock = () => number;
+type TimeoutScheduler = (run: () => void, delayMs: number) => () => void;
+type MonotonicClock = () => number;
 type FrameScheduler = (run: () => void) => () => void;
 
 const noop = () => {};
@@ -56,59 +51,22 @@ export function createAnimationBudget(
 	};
 }
 
-export function shouldStartTitleEnhancement(
-	isPageTransitioning: boolean,
-	hasFirstContentfulPaint: boolean | undefined,
-) {
-	return isPageTransitioning || hasFirstContentfulPaint === false;
-}
-
-export function loadTitleOutlineIfEnhancing<T>(
-	loadFont: () => Promise<{ compile: (text: string) => Promise<T> }>,
-	text: string,
-	shouldCompile: () => boolean,
-) {
-	return loadFont().then(
-		(loaded) => (shouldCompile() ? loaded.compile(text) : undefined),
-		(error: unknown) => {
-			if (shouldCompile()) throw error;
-			return undefined;
-		},
-	);
-}
-
-export function runAfterPageTransition(
-	run: () => void,
-	gate: PageTransitionGate,
-) {
-	if (!gate.isTransitioning()) {
-		run();
-		return noop;
-	}
-
-	return gate.onTransitionEnd(run);
-}
-
 export function waitForOpaqueTransition(
-	target: Pick<EventTarget, "addEventListener" | "removeEventListener">,
 	isOpaque: () => boolean,
 	run: () => void,
 	onTimeout: () => void,
 	timeoutMs: number,
 	schedule: FrameScheduler = scheduleFrame,
-	scheduleExpiry: TimeoutScheduler = scheduleTimeout,
+	now: MonotonicClock = readNow,
 ) {
 	let active = true;
 	let cancelFrame = noop;
-	let cancelExpiry = noop;
+	const deadline = now() + timeoutMs;
 
 	const cancel = () => {
 		if (!active) return;
 		active = false;
-		target.removeEventListener("transitionend", handleTransition);
-		target.removeEventListener("transitioncancel", handleTransition);
 		cancelFrame();
-		cancelExpiry();
 	};
 	const finish = (callback: () => void) => {
 		if (!active) return;
@@ -121,25 +79,13 @@ export function waitForOpaqueTransition(
 			finish(run);
 			return;
 		}
+		if (now() >= deadline) {
+			finish(onTimeout);
+			return;
+		}
 		cancelFrame = schedule(check);
 	};
-	const expire = () => {
-		if (!active) return;
-		finish(isOpaque() ? run : onTimeout);
-	};
-	const handleTransition: EventListener = (event) => {
-		if (
-			event.target === target &&
-			(event as TransitionEvent).propertyName === "opacity" &&
-			isOpaque()
-		) {
-			finish(run);
-		}
-	};
 
-	target.addEventListener("transitionend", handleTransition);
-	target.addEventListener("transitioncancel", handleTransition);
-	cancelExpiry = scheduleExpiry(expire, timeoutMs);
 	check();
 
 	return cancel;
@@ -156,29 +102,19 @@ export function createInitialAnimationController<T>(
 
 	let phase: Phase = "waiting";
 	let current: Current | undefined;
-	let generation = 0;
 	let cancelReveal = noop;
 
 	const arm = (armed: Current) => {
-		const armedGeneration = ++generation;
 		cancelReveal();
 		const completion = animate(armed.value);
 		cancelReveal = schedule(() => {
-			if (
-				phase === "active" &&
-				current === armed &&
-				generation === armedGeneration
-			) {
+			if (phase === "active" && current === armed) {
 				reveal();
 			}
 		});
 
 		void Promise.resolve(completion).then(() => {
-			if (
-				phase !== "active" ||
-				current !== armed ||
-				generation !== armedGeneration
-			) {
+			if (phase !== "active" || current !== armed) {
 				return;
 			}
 			phase = "complete";
@@ -208,7 +144,6 @@ export function createInitialAnimationController<T>(
 			if (phase === "cancelled") return;
 			phase = "cancelled";
 			current = undefined;
-			generation += 1;
 			cancelReveal();
 			cancelReveal = noop;
 		},

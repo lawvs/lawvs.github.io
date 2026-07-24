@@ -7,9 +7,7 @@ async function loadYuragiAnimationModule() {
 	const source = await readFile(
 		new URL("../src/utils/yuragi-animation.ts", import.meta.url),
 		"utf8",
-	).catch(() => "");
-	assert.notEqual(source, "", "expected the Yuragi animation module");
-
+	);
 	const output = ts.transpileModule(source, {
 		compilerOptions: {
 			module: ts.ModuleKind.ESNext,
@@ -22,151 +20,85 @@ async function loadYuragiAnimationModule() {
 	);
 }
 
-function createTransitionTarget() {
-	const listeners = new Map();
-	const target = {
-		addEventListener(type, listener) {
-			const typedListeners = listeners.get(type) ?? new Set();
-			typedListeners.add(listener);
-			listeners.set(type, typedListeners);
+const animationModule = loadYuragiAnimationModule();
+
+function createFrameScheduler() {
+	const frames = [];
+
+	return {
+		schedule(run) {
+			let active = true;
+			frames.push(() => {
+				if (!active) return;
+				active = false;
+				run();
+			});
+			return () => {
+				active = false;
+			};
 		},
-		removeEventListener(type, listener) {
-			listeners.get(type)?.delete(listener);
+		runNext() {
+			assert.notEqual(frames.length, 0, "expected a scheduled frame");
+			frames.shift()();
 		},
-		dispatch(type, propertyName = "opacity") {
-			for (const listener of listeners.get(type) ?? []) {
-				listener({ propertyName, target });
-			}
-		},
-		listenerCount(type) {
-			return listeners.get(type)?.size ?? 0;
+		get pending() {
+			return frames.length;
 		},
 	};
-	return target;
 }
 
-test("finishes a zero-duration opacity transition on a defensive frame", async () => {
-	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
-	const target = createTransitionTarget();
-	const frames = [];
-	const timeouts = [];
-	let opaque = false;
+test("runs immediately when the page transition is already opaque", async () => {
+	const { waitForOpaqueTransition } = await animationModule;
+	const frames = createFrameScheduler();
 	let runs = 0;
-	let expirations = 0;
 
 	waitForOpaqueTransition(
-		target,
-		() => opaque,
-		() => {
-			runs += 1;
-		},
-		() => {
-			expirations += 1;
-		},
-		1_000,
-		(run) => {
-			frames.push(run);
-			return () => {};
-		},
-		(run) => {
-			timeouts.push(run);
-			return () => {};
-		},
-	);
-
-	assert.equal(runs, 0);
-	assert.equal(frames.length, 1);
-	opaque = true;
-	frames.shift()();
-	assert.equal(runs, 1);
-	timeouts.shift()();
-	assert.equal(expirations, 0);
-});
-
-test("finishes an opaque transitioncancel and cleans every waiter", async () => {
-	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
-	const target = createTransitionTarget();
-	const frames = [];
-	const timeouts = [];
-	let opaque = false;
-	let runs = 0;
-	let frameCancellations = 0;
-	let timeoutCancellations = 0;
-
-	waitForOpaqueTransition(
-		target,
-		() => opaque,
+		() => true,
 		() => {
 			runs += 1;
 		},
 		() => assert.fail("an opaque transition must not time out"),
 		1_000,
-		(run) => {
-			frames.push(run);
-			return () => {
-				frameCancellations += 1;
-			};
-		},
-		(run) => {
-			timeouts.push(run);
-			return () => {
-				timeoutCancellations += 1;
-			};
-		},
+		frames.schedule,
+		() => 0,
 	);
 
-	assert.equal(target.listenerCount("transitionend"), 1);
-	assert.equal(target.listenerCount("transitioncancel"), 1);
-	opaque = true;
-	target.dispatch("transitioncancel");
-
 	assert.equal(runs, 1);
-	assert.equal(target.listenerCount("transitionend"), 0);
-	assert.equal(target.listenerCount("transitioncancel"), 0);
-	assert.equal(frameCancellations, 1);
-	assert.equal(timeoutCancellations, 1);
-
-	frames.shift()();
-	timeouts.shift()();
-	assert.equal(runs, 1);
+	assert.equal(frames.pending, 0);
 });
 
-test("keeps an ordinary transitionend gated until opacity reaches one", async () => {
-	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
-	const target = createTransitionTarget();
+test("waits until a defensive frame observes an opaque transition", async () => {
+	const { waitForOpaqueTransition } = await animationModule;
+	const frames = createFrameScheduler();
 	let opaque = false;
 	let runs = 0;
 
 	waitForOpaqueTransition(
-		target,
 		() => opaque,
 		() => {
 			runs += 1;
 		},
 		() => assert.fail("the transition must not time out"),
 		1_000,
-		() => () => {},
-		() => () => {},
+		frames.schedule,
+		() => 0,
 	);
 
-	target.dispatch("transitionend");
 	assert.equal(runs, 0);
-
 	opaque = true;
-	target.dispatch("transitionend");
+	frames.runNext();
 	assert.equal(runs, 1);
 });
 
-test("rechecks opacity at the watchdog before selecting fallback", async () => {
-	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
-	const target = createTransitionTarget();
-	let expire;
+test("prefers an opaque transition over fallback after a delayed frame", async () => {
+	const { waitForOpaqueTransition } = await animationModule;
+	const frames = createFrameScheduler();
+	let now = 0;
 	let opaque = false;
 	let runs = 0;
 	let fallbacks = 0;
 
 	waitForOpaqueTransition(
-		target,
 		() => opaque,
 		() => {
 			runs += 1;
@@ -175,55 +107,47 @@ test("rechecks opacity at the watchdog before selecting fallback", async () => {
 			fallbacks += 1;
 		},
 		1_000,
-		() => () => {},
-		(run, delayMs) => {
-			assert.equal(delayMs, 1_000);
-			expire = run;
-			return () => {};
-		},
+		frames.schedule,
+		() => now,
 	);
 
+	now = 1_001;
 	opaque = true;
-	expire();
+	frames.runNext();
 	assert.equal(runs, 1);
 	assert.equal(fallbacks, 0);
+});
 
-	let secondExpire;
-	opaque = false;
+test("selects fallback when the page transition misses its deadline", async () => {
+	const { waitForOpaqueTransition } = await animationModule;
+	const frames = createFrameScheduler();
+	let now = 0;
+	let fallbacks = 0;
+
 	waitForOpaqueTransition(
-		target,
-		() => opaque,
-		() => {
-			runs += 1;
-		},
+		() => false,
+		() => assert.fail("a hidden transition must not run"),
 		() => {
 			fallbacks += 1;
 		},
 		1_000,
-		() => () => {},
-		(run) => {
-			secondExpire = run;
-			return () => {};
-		},
+		frames.schedule,
+		() => now,
 	);
-	secondExpire();
-	assert.equal(runs, 1);
+
+	now = 1_001;
+	frames.runNext();
 	assert.equal(fallbacks, 1);
 });
 
-test("cancels opacity events, frames, and watchdog without a late run", async () => {
-	const { waitForOpaqueTransition } = await loadYuragiAnimationModule();
-	const target = createTransitionTarget();
-	let frame;
-	let expire;
-	let frameCancellations = 0;
-	let timeoutCancellations = 0;
+test("cancels a pending transition frame without a late callback", async () => {
+	const { waitForOpaqueTransition } = await animationModule;
+	const frames = createFrameScheduler();
 	let opaque = false;
 	let runs = 0;
 	let fallbacks = 0;
 
 	const cancel = waitForOpaqueTransition(
-		target,
 		() => opaque,
 		() => {
 			runs += 1;
@@ -232,88 +156,19 @@ test("cancels opacity events, frames, and watchdog without a late run", async ()
 			fallbacks += 1;
 		},
 		1_000,
-		(run) => {
-			frame = run;
-			return () => {
-				frameCancellations += 1;
-			};
-		},
-		(run) => {
-			expire = run;
-			return () => {
-				timeoutCancellations += 1;
-			};
-		},
+		frames.schedule,
+		() => 0,
 	);
 
 	cancel();
-	assert.equal(target.listenerCount("transitionend"), 0);
-	assert.equal(target.listenerCount("transitioncancel"), 0);
-	assert.equal(frameCancellations, 1);
-	assert.equal(timeoutCancellations, 1);
-
 	opaque = true;
-	target.dispatch("transitionend");
-	target.dispatch("transitioncancel");
-	frame();
-	expire();
+	frames.runNext();
 	assert.equal(runs, 0);
 	assert.equal(fallbacks, 0);
 });
 
-test("defers Yuragi animation until the active page transition ends", async () => {
-	const { runAfterPageTransition } = await loadYuragiAnimationModule();
-	let deferredRun;
-	let runs = 0;
-	let cleanups = 0;
-
-	const cleanup = runAfterPageTransition(
-		() => {
-			runs += 1;
-		},
-		{
-			isTransitioning: () => true,
-			onTransitionEnd: (run) => {
-				deferredRun = run;
-				return () => {
-					cleanups += 1;
-				};
-			},
-		},
-	);
-
-	assert.equal(runs, 0);
-	deferredRun();
-	assert.equal(runs, 1);
-	cleanup();
-	assert.equal(cleanups, 1);
-});
-
-test("runs Yuragi animation immediately outside a page transition", async () => {
-	const { runAfterPageTransition } = await loadYuragiAnimationModule();
-	let runs = 0;
-	let subscriptions = 0;
-
-	const cleanup = runAfterPageTransition(
-		() => {
-			runs += 1;
-		},
-		{
-			isTransitioning: () => false,
-			onTransitionEnd: () => {
-				subscriptions += 1;
-				return () => {};
-			},
-		},
-	);
-
-	assert.equal(runs, 1);
-	assert.equal(subscriptions, 0);
-	cleanup();
-});
-
 test("claims a Yuragi animation budget before its deadline", async () => {
-	const { createAnimationBudget } = await loadYuragiAnimationModule();
+	const { createAnimationBudget } = await animationModule;
 	let expire;
 	let cancellations = 0;
 	let expirations = 0;
@@ -339,7 +194,7 @@ test("claims a Yuragi animation budget before its deadline", async () => {
 });
 
 test("expires a Yuragi animation budget and rejects a late claim", async () => {
-	const { createAnimationBudget } = await loadYuragiAnimationModule();
+	const { createAnimationBudget } = await animationModule;
 	let expire;
 	let expirations = 0;
 	const budget = createAnimationBudget(
@@ -358,8 +213,8 @@ test("expires a Yuragi animation budget and rejects a late claim", async () => {
 	assert.equal(budget.claim(), false);
 });
 
-test("rejects a claim after the deadline even when the timer is delayed", async () => {
-	const { createAnimationBudget } = await loadYuragiAnimationModule();
+test("rejects a budget claim after a delayed timer deadline", async () => {
+	const { createAnimationBudget } = await animationModule;
 	let expire;
 	let cancellations = 0;
 	let expirations = 0;
@@ -386,178 +241,11 @@ test("rejects a claim after the deadline even when the timer is delayed", async 
 	assert.equal(expirations, 1);
 });
 
-test("only starts title enhancement before paint or during a page transition", async () => {
-	const { shouldStartTitleEnhancement } = await loadYuragiAnimationModule();
-
-	assert.equal(shouldStartTitleEnhancement(true, true), true);
-	assert.equal(shouldStartTitleEnhancement(false, false), true);
-	assert.equal(shouldStartTitleEnhancement(false, true), false);
-	assert.equal(shouldStartTitleEnhancement(false, undefined), false);
-});
-
-test("warms the Yuragi font without compiling fallback titles", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-	let compiles = 0;
-	let loads = 0;
-
-	const outline = await loadTitleOutlineIfEnhancing(
-		() => {
-			loads += 1;
-			return Promise.resolve({
-				compile: () => {
-					compiles += 1;
-					return Promise.resolve("outline");
-				},
-			});
-		},
-		"title",
-		() => false,
-	);
-
-	assert.equal(outline, undefined);
-	assert.equal(loads, 1);
-	assert.equal(compiles, 0);
-});
-
-test("handles rejected fallback font warmups without compiling", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-
-	const outline = await loadTitleOutlineIfEnhancing(
-		() => Promise.reject(new Error("font unavailable")),
-		"title",
-		() => false,
-	);
-
-	await Promise.resolve();
-	assert.equal(outline, undefined);
-});
-
-test("compiles Yuragi titles selected for enhancement", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-	let compiles = 0;
-
-	const outline = await loadTitleOutlineIfEnhancing(
-		() =>
-			Promise.resolve({
-				compile: (text) => {
-					compiles += 1;
-					return Promise.resolve(`outline:${text}`);
-				},
-			}),
-		"title",
-		() => true,
-	);
-
-	assert.equal(outline, "outline:title");
-	assert.equal(compiles, 1);
-});
-
-test("skips compilation when enhancement falls back before the font resolves", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-	let resolveFont;
-	let isEnhancing = true;
-	let compiles = 0;
-
-	const outline = loadTitleOutlineIfEnhancing(
-		() =>
-			new Promise((resolve) => {
-				resolveFont = resolve;
-			}),
-		"title",
-		() => isEnhancing,
-	);
-
-	isEnhancing = false;
-	resolveFont({
-		compile: () => {
-			compiles += 1;
-			return Promise.resolve("outline");
-		},
-	});
-
-	assert.equal(await outline, undefined);
-	assert.equal(compiles, 0);
-});
-
-test("handles a late font rejection after enhancement falls back", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-	let rejectFont;
-	let isEnhancing = true;
-
-	const outline = loadTitleOutlineIfEnhancing(
-		() =>
-			new Promise((_, reject) => {
-				rejectFont = reject;
-			}),
-		"title",
-		() => isEnhancing,
-	);
-
-	isEnhancing = false;
-	rejectFont(new Error("font unavailable"));
-
-	assert.equal(await outline, undefined);
-});
-
-test("skips deferred compilation after the title component is disposed", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-	const componentSource = await readFile(
-		new URL("../src/components/YuragiTitle.svelte", import.meta.url),
-		"utf8",
-	);
-	let resolveFont;
-	let disposed = false;
-	const enhancementState = "pending";
-	let compiles = 0;
-
-	const outline = loadTitleOutlineIfEnhancing(
-		() =>
-			new Promise((resolve) => {
-				resolveFont = resolve;
-			}),
-		"title",
-		() => !disposed && enhancementState === "pending",
-	);
-
-	disposed = true;
-	resolveFont({
-		compile: () => {
-			compiles += 1;
-			return Promise.resolve("outline");
-		},
-	});
-
-	assert.equal(await outline, undefined);
-	assert.equal(compiles, 0);
-	assert.match(
-		componentSource,
-		/loadTitleOutlineIfEnhancing\(\s*getFont,\s*text,\s*\(\)\s*=>\s*!disposed\s*&&\s*enhancementState\s*===\s*"pending",?\s*\)/,
-		"expected the component compile predicate to include its live disposed state",
-	);
-});
-
-test("propagates compilation failures while enhancement is pending", async () => {
-	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
-
-	await assert.rejects(
-		loadTitleOutlineIfEnhancing(
-			() =>
-				Promise.resolve({
-					compile: () => Promise.reject(new Error("compile failed")),
-				}),
-			"title",
-			() => true,
-		),
-		/compile failed/,
-	);
-});
-
-test("hides and re-arms a same-frame replacement after reveal", async () => {
-	const { createInitialAnimationController } =
-		await loadYuragiAnimationModule();
+test("hides and re-arms a same-frame replacement before revealing it", async () => {
+	const { createInitialAnimationController } = await animationModule;
 	const completions = new Map();
 	const events = [];
-	const frames = [];
+	const frames = createFrameScheduler();
 	const controller = createInitialAnimationController(
 		(value) => {
 			events.push(`animate:${value}`);
@@ -567,20 +255,12 @@ test("hides and re-arms a same-frame replacement after reveal", async () => {
 		},
 		() => events.push("hide"),
 		() => events.push("reveal"),
-		(run) => {
-			let active = true;
-			frames.push(() => {
-				if (active) run();
-			});
-			return () => {
-				active = false;
-			};
-		},
+		frames.schedule,
 	);
 
 	controller.replace("first", () => events.push("install:first"));
 	controller.start();
-	frames.shift()();
+	frames.runNext();
 	assert.deepEqual(events, [
 		"hide",
 		"install:first",
@@ -604,8 +284,8 @@ test("hides and re-arms a same-frame replacement after reveal", async () => {
 		"animate:latest",
 	]);
 
-	frames.shift()();
-	frames.shift()();
+	frames.runNext();
+	frames.runNext();
 	assert.equal(events.at(-1), "reveal");
 
 	completions.get("latest")();
@@ -614,11 +294,10 @@ test("hides and re-arms a same-frame replacement after reveal", async () => {
 	assert.deepEqual(events.slice(-2), ["reveal", "install:complete"]);
 });
 
-test("makes late initial-animation completion harmless after cancellation", async () => {
-	const { createInitialAnimationController } =
-		await loadYuragiAnimationModule();
+test("ignores late animation completion after cancellation", async () => {
+	const { createInitialAnimationController } = await animationModule;
 	const events = [];
-	const frames = [];
+	const frames = createFrameScheduler();
 	let complete;
 	const controller = createInitialAnimationController(
 		(value) => {
@@ -629,15 +308,7 @@ test("makes late initial-animation completion harmless after cancellation", asyn
 		},
 		() => events.push("hide"),
 		() => events.push("reveal"),
-		(run) => {
-			let active = true;
-			frames.push(() => {
-				if (active) run();
-			});
-			return () => {
-				active = false;
-			};
-		},
+		frames.schedule,
 	);
 
 	controller.replace("first", () => events.push("install:first"));
@@ -645,6 +316,6 @@ test("makes late initial-animation completion harmless after cancellation", asyn
 	controller.cancel();
 	complete();
 	await Promise.resolve();
-	frames.shift()();
+	frames.runNext();
 	assert.deepEqual(events, ["hide", "install:first", "animate:first"]);
 });

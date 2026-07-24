@@ -24,9 +24,6 @@ import { onMount } from "svelte";
 import {
 	createInitialAnimationController,
 	createAnimationBudget,
-	loadTitleOutlineIfEnhancing,
-	runAfterPageTransition,
-	shouldStartTitleEnhancement,
 	waitForOpaqueTransition,
 } from "../utils/yuragi-animation";
 
@@ -40,14 +37,8 @@ const PAGE_TRANSITION_GATE_TIMEOUT_MS = 1_000;
 
 let svgHost: HTMLSpanElement;
 let enhancementState: EnhancementState = "fallback";
-let svgVisible = false;
 
 onMount(() => {
-	let disposed = false;
-	let outline: TextOutline | undefined;
-	let frame: number | undefined;
-	let hasScheduledInitialSettle = false;
-	let cancelInitialSettle = () => {};
 	const media = window.matchMedia("(min-width: 768px)");
 	const swupContainer = svgHost.closest("#swup-container");
 	const isPageTransitioning = () =>
@@ -57,9 +48,20 @@ onMount(() => {
 		"PerformancePaintTiming" in window
 			? performance.getEntriesByName("first-contentful-paint", "paint").length > 0
 			: undefined;
-	let animationBudget: ReturnType<typeof createAnimationBudget> | undefined;
+	const shouldEnhance =
+		isPageTransitioning() || hasFirstContentfulPaint === false;
+	const pendingFont = getFont();
+
+	if (!shouldEnhance) {
+		void pendingFont.catch(() => {});
+		return;
+	}
+
+	let disposed = false;
+	let outline: TextOutline | undefined;
+	let frame: number | undefined;
+	let cancelTransitionWait = () => {};
 	const setSvgVisible = (visible: boolean) => {
-		svgVisible = visible;
 		svgHost.classList.toggle("pending-reveal", !visible);
 	};
 	const initialAnimation = createInitialAnimationController<SVGSVGElement>(
@@ -71,34 +73,33 @@ onMount(() => {
 		() => {
 			setSvgVisible(false);
 		},
-		() => {
-			if (!disposed) setSvgVisible(true);
-		},
+		() => setSvgVisible(true),
 	);
 
 	function selectFallback() {
-		animationBudget?.cancel();
-		cancelInitialSettle();
-		cancelInitialSettle = () => {};
+		animationBudget.cancel();
+		cancelTransitionWait();
 		initialAnimation.cancel();
 		setSvgVisible(false);
 		svgHost.replaceChildren();
 		enhancementState = "fallback";
 	}
 
-	if (
-		shouldStartTitleEnhancement(
-			isPageTransitioning(),
-			hasFirstContentfulPaint,
-		)
-	) {
-		enhancementState = "pending";
-		animationBudget = createAnimationBudget(
-			ANIMATION_BUDGET_MS,
-			() => {
-				if (!disposed) selectFallback();
-			},
+	enhancementState = "pending";
+	const animationBudget = createAnimationBudget(
+		ANIMATION_BUDGET_MS,
+		selectFallback,
+	);
+	if (swupContainer) {
+		cancelTransitionWait = waitForOpaqueTransition(
+			() =>
+				Number.parseFloat(getComputedStyle(swupContainer).opacity) >= 1,
+			() => initialAnimation.start(),
+			selectFallback,
+			PAGE_TRANSITION_GATE_TIMEOUT_MS,
 		);
+	} else {
+		initialAnimation.start();
 	}
 
 	function renderSvg() {
@@ -115,7 +116,7 @@ onMount(() => {
 		svg.setAttribute("aria-hidden", "true");
 		if (
 			enhancementState === "pending" &&
-			animationBudget?.claim() !== true
+			!animationBudget.claim()
 		) {
 			return;
 		}
@@ -123,37 +124,6 @@ onMount(() => {
 			svgHost.replaceChildren(svg);
 		});
 		enhancementState = "ready";
-
-		if (!hasScheduledInitialSettle) {
-			hasScheduledInitialSettle = true;
-			cancelInitialSettle = runAfterPageTransition(
-				() => {
-					if (!disposed) initialAnimation.start();
-				},
-				{
-					isTransitioning: isPageTransitioning,
-					onTransitionEnd: (run) => {
-						if (!swupContainer) {
-							run();
-							return () => {};
-						}
-
-						return waitForOpaqueTransition(
-							swupContainer,
-							() =>
-								Number.parseFloat(
-									getComputedStyle(swupContainer).opacity,
-								) >= 1,
-							run,
-							() => {
-								if (!disposed) selectFallback();
-							},
-							PAGE_TRANSITION_GATE_TIMEOUT_MS,
-						);
-					},
-				},
-			);
-		}
 	}
 
 	function render() {
@@ -173,26 +143,23 @@ onMount(() => {
 	observer.observe(svgHost);
 	media.addEventListener("change", scheduleRender);
 
-	void loadTitleOutlineIfEnhancing(
-		getFont,
-		text,
-		() => !disposed && enhancementState === "pending",
-	)
+	const isPending = () => !disposed && enhancementState === "pending";
+	void pendingFont
+		.then((font) => (isPending() ? font.compile(text) : undefined))
 		.then((compiled) => {
-			if (compiled === undefined || disposed) return;
+			if (compiled === undefined || !isPending()) return;
 			outline = compiled;
 			render();
 		})
 		.catch(() => {
-			if (disposed) return;
-			selectFallback();
+			if (isPending()) selectFallback();
 		});
 
 	return () => {
 		disposed = true;
 		if (frame !== undefined) cancelAnimationFrame(frame);
-		animationBudget?.cancel();
-		cancelInitialSettle();
+		animationBudget.cancel();
+		cancelTransitionWait();
 		initialAnimation.cancel();
 		observer.disconnect();
 		media.removeEventListener("change", scheduleRender);
@@ -216,8 +183,7 @@ onMount(() => {
 	>
 	<span
 		bind:this={svgHost}
-		class="svg-host"
-		class:pending-reveal={!svgVisible}
+		class="svg-host pending-reveal"
 		aria-hidden="true"
 	></span>
 </span>
