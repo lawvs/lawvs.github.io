@@ -5,7 +5,7 @@ export interface PageTransitionGate {
 
 export type TimeoutScheduler = (run: () => void, delayMs: number) => () => void;
 export type MonotonicClock = () => number;
-export type FrameScheduler = (run: () => void) => () => void;
+type FrameScheduler = (run: () => void) => () => void;
 
 const noop = () => {};
 
@@ -63,6 +63,19 @@ export function shouldStartTitleEnhancement(
 	return isPageTransitioning || hasFirstContentfulPaint === false;
 }
 
+export function loadTitleOutlineIfEnhancing<T>(
+	loadFont: () => Promise<{ compile: (text: string) => Promise<T> }>,
+	text: string,
+	shouldCompile: boolean,
+) {
+	const font = loadFont();
+	if (!shouldCompile) {
+		void font.catch(noop);
+		return Promise.resolve<T | undefined>(undefined);
+	}
+	return font.then((loaded) => loaded.compile(text));
+}
+
 export function runAfterPageTransition(
 	run: () => void,
 	gate: PageTransitionGate,
@@ -73,46 +86,6 @@ export function runAfterPageTransition(
 	}
 
 	return gate.onTransitionEnd(run);
-}
-
-export function runBeforeNextFrame(
-	run: () => void,
-	afterFrame: () => void,
-	schedule: FrameScheduler = scheduleFrame,
-) {
-	run();
-	return schedule(afterFrame);
-}
-
-export function runBeforeStableFrame<T>(
-	readCurrent: () => T,
-	run: (current: T) => void,
-	afterFrame: (current: T) => void,
-	schedule: FrameScheduler = scheduleFrame,
-) {
-	let active = true;
-	let cancelFrame = noop;
-
-	const arm = () => {
-		const current = readCurrent();
-		run(current);
-		cancelFrame = schedule(() => {
-			if (!active) return;
-			if (readCurrent() !== current) {
-				arm();
-				return;
-			}
-			active = false;
-			afterFrame(current);
-		});
-	};
-
-	arm();
-	return () => {
-		if (!active) return;
-		active = false;
-		cancelFrame();
-	};
 }
 
 export function createInitialAnimationController<T>(

@@ -24,6 +24,7 @@ import { onMount } from "svelte";
 import {
 	createInitialAnimationController,
 	createAnimationBudget,
+	loadTitleOutlineIfEnhancing,
 	runAfterPageTransition,
 	shouldStartTitleEnhancement,
 } from "../utils/yuragi-animation";
@@ -189,10 +190,13 @@ onMount(() => {
 	observer.observe(svgHost);
 	media.addEventListener("change", scheduleRender);
 
-	void getFont()
-		.then((font) => font.compile(text))
+	void loadTitleOutlineIfEnhancing(
+		getFont,
+		text,
+		enhancementState === "pending",
+	)
 		.then((compiled) => {
-			if (disposed) return;
+			if (compiled === undefined || disposed) return;
 			outline = compiled;
 			render();
 		})

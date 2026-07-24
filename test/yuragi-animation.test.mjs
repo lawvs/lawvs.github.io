@@ -3,12 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
 
-async function loadTransitionGate() {
+async function loadYuragiAnimationModule() {
 	const source = await readFile(
 		new URL("../src/utils/yuragi-animation.ts", import.meta.url),
 		"utf8",
 	).catch(() => "");
-	assert.notEqual(source, "", "expected the Yuragi transition gate");
+	assert.notEqual(source, "", "expected the Yuragi animation module");
 
 	const output = ts.transpileModule(source, {
 		compilerOptions: {
@@ -23,7 +23,7 @@ async function loadTransitionGate() {
 }
 
 test("defers Yuragi animation until the active page transition ends", async () => {
-	const { runAfterPageTransition } = await loadTransitionGate();
+	const { runAfterPageTransition } = await loadYuragiAnimationModule();
 	let deferredRun;
 	let runs = 0;
 	let cleanups = 0;
@@ -51,7 +51,7 @@ test("defers Yuragi animation until the active page transition ends", async () =
 });
 
 test("runs Yuragi animation immediately outside a page transition", async () => {
-	const { runAfterPageTransition } = await loadTransitionGate();
+	const { runAfterPageTransition } = await loadYuragiAnimationModule();
 	let runs = 0;
 	let subscriptions = 0;
 
@@ -74,7 +74,7 @@ test("runs Yuragi animation immediately outside a page transition", async () => 
 });
 
 test("claims a Yuragi animation budget before its deadline", async () => {
-	const { createAnimationBudget } = await loadTransitionGate();
+	const { createAnimationBudget } = await loadYuragiAnimationModule();
 	let expire;
 	let cancellations = 0;
 	let expirations = 0;
@@ -100,7 +100,7 @@ test("claims a Yuragi animation budget before its deadline", async () => {
 });
 
 test("expires a Yuragi animation budget and rejects a late claim", async () => {
-	const { createAnimationBudget } = await loadTransitionGate();
+	const { createAnimationBudget } = await loadYuragiAnimationModule();
 	let expire;
 	let expirations = 0;
 	const budget = createAnimationBudget(
@@ -120,7 +120,7 @@ test("expires a Yuragi animation budget and rejects a late claim", async () => {
 });
 
 test("rejects a claim after the deadline even when the timer is delayed", async () => {
-	const { createAnimationBudget } = await loadTransitionGate();
+	const { createAnimationBudget } = await loadYuragiAnimationModule();
 	let expire;
 	let cancellations = 0;
 	let expirations = 0;
@@ -148,7 +148,7 @@ test("rejects a claim after the deadline even when the timer is delayed", async 
 });
 
 test("only starts title enhancement before paint or during a page transition", async () => {
-	const { shouldStartTitleEnhancement } = await loadTransitionGate();
+	const { shouldStartTitleEnhancement } = await loadYuragiAnimationModule();
 
 	assert.equal(shouldStartTitleEnhancement(true, true), true);
 	assert.equal(shouldStartTitleEnhancement(false, false), true);
@@ -156,120 +156,66 @@ test("only starts title enhancement before paint or during a page transition", a
 	assert.equal(shouldStartTitleEnhancement(false, undefined), false);
 });
 
-test("arms Yuragi animation before revealing it on the next frame", async () => {
-	const { runBeforeNextFrame } = await loadTransitionGate();
-	const events = [];
-	let nextFrame;
+test("warms the Yuragi font without compiling fallback titles", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
+	let compiles = 0;
+	let loads = 0;
 
-	runBeforeNextFrame(
-		() => events.push("animate"),
-		() => events.push("reveal"),
-		(run) => {
-			nextFrame = run;
-			return () => {};
-		},
-	);
-
-	assert.deepEqual(events, ["animate"]);
-	nextFrame();
-	assert.deepEqual(events, ["animate", "reveal"]);
-});
-
-test("cancels a pending Yuragi reveal", async () => {
-	const { runBeforeNextFrame } = await loadTransitionGate();
-	const events = [];
-	let nextFrame;
-	let active = true;
-
-	const cleanup = runBeforeNextFrame(
-		() => events.push("animate"),
-		() => events.push("reveal"),
-		(run) => {
-			nextFrame = () => {
-				if (active) run();
-			};
-			return () => {
-				active = false;
-			};
-		},
-	);
-
-	cleanup();
-	nextFrame();
-	assert.deepEqual(events, ["animate"]);
-});
-
-test("re-arms replacement values before revealing stable Yuragi content", async () => {
-	const { runBeforeStableFrame } = await loadTransitionGate();
-	const events = [];
-	const frames = [];
-	let current = "first";
-
-	runBeforeStableFrame(
-		() => current,
-		(value) => events.push(`animate:${value}`),
-		(value) => events.push(`reveal:${value}`),
-		(run) => {
-			let active = true;
-			frames.push(() => {
-				if (active) run();
+	const outline = await loadTitleOutlineIfEnhancing(
+		() => {
+			loads += 1;
+			return Promise.resolve({
+				compile: () => {
+					compiles += 1;
+					return Promise.resolve("outline");
+				},
 			});
-			return () => {
-				active = false;
-			};
 		},
+		"title",
+		false,
 	);
 
-	assert.deepEqual(events, ["animate:first"]);
-	current = "replacement";
-	frames.shift()();
-	assert.deepEqual(events, ["animate:first", "animate:replacement"]);
-	current = "latest";
-	frames.shift()();
-	assert.deepEqual(events, [
-		"animate:first",
-		"animate:replacement",
-		"animate:latest",
-	]);
-	frames.shift()();
-	assert.deepEqual(events, [
-		"animate:first",
-		"animate:replacement",
-		"animate:latest",
-		"reveal:latest",
-	]);
+	assert.equal(outline, undefined);
+	assert.equal(loads, 1);
+	assert.equal(compiles, 0);
 });
 
-test("cancels the whole pending stable-frame sequence", async () => {
-	const { runBeforeStableFrame } = await loadTransitionGate();
-	const events = [];
-	const frames = [];
-	let current = "first";
+test("handles rejected fallback font warmups without compiling", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
 
-	const cleanup = runBeforeStableFrame(
-		() => current,
-		(value) => events.push(`animate:${value}`),
-		(value) => events.push(`reveal:${value}`),
-		(run) => {
-			let active = true;
-			frames.push(() => {
-				if (active) run();
-			});
-			return () => {
-				active = false;
-			};
-		},
+	const outline = await loadTitleOutlineIfEnhancing(
+		() => Promise.reject(new Error("font unavailable")),
+		"title",
+		false,
 	);
 
-	current = "replacement";
-	frames.shift()();
-	cleanup();
-	frames.shift()();
-	assert.deepEqual(events, ["animate:first", "animate:replacement"]);
+	await Promise.resolve();
+	assert.equal(outline, undefined);
+});
+
+test("compiles Yuragi titles selected for enhancement", async () => {
+	const { loadTitleOutlineIfEnhancing } = await loadYuragiAnimationModule();
+	let compiles = 0;
+
+	const outline = await loadTitleOutlineIfEnhancing(
+		() =>
+			Promise.resolve({
+				compile: (text) => {
+					compiles += 1;
+					return Promise.resolve(`outline:${text}`);
+				},
+			}),
+		"title",
+		true,
+	);
+
+	assert.equal(outline, "outline:title");
+	assert.equal(compiles, 1);
 });
 
 test("hides and re-arms a same-frame replacement after reveal", async () => {
-	const { createInitialAnimationController } = await loadTransitionGate();
+	const { createInitialAnimationController } =
+		await loadYuragiAnimationModule();
 	const completions = new Map();
 	const events = [];
 	const frames = [];
@@ -330,7 +276,8 @@ test("hides and re-arms a same-frame replacement after reveal", async () => {
 });
 
 test("makes late initial-animation completion harmless after cancellation", async () => {
-	const { createInitialAnimationController } = await loadTransitionGate();
+	const { createInitialAnimationController } =
+		await loadYuragiAnimationModule();
 	const events = [];
 	const frames = [];
 	let complete;
