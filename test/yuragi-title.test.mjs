@@ -35,3 +35,25 @@ test("keeps the Yuragi WASM entry out of Vite dependency optimization", async ()
 		/optimizeDeps:\s*\{[\s\S]*?exclude:\s*\[[\s\S]*?["']@yuragi-labs\/core\/wasm["'][\s\S]*?\][\s\S]*?\}/,
 	);
 });
+
+test("article title uses the unified Yuragi renderer lifecycle", async () => {
+	const component = await readFile(
+		new URL("../src/components/YuragiTitle.svelte", import.meta.url),
+		"utf8",
+	);
+	const animationUtility = await readFile(
+		new URL("../src/utils/yuragi-animation.ts", import.meta.url),
+		"utf8",
+	);
+
+	assert.match(component, /\brenderYuragiText\b/);
+	assert.match(component, /\bYuragiTextHandle\b/);
+	assert.match(component, /animation:out:start/);
+	assert.match(component, /\.play\(\)/);
+	assert.match(component, /\.remove\(\)/);
+	assert.doesNotMatch(
+		component,
+		/\b(?:animateShards|createShardedSvg|layoutShardedText)\b/,
+	);
+	assert.doesNotMatch(animationUtility, /\bcreateInitialAnimationController\b/);
+});

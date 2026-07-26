@@ -14,15 +14,13 @@ function getFont() {
 
 <script lang="ts">
 import {
-	animateShards,
-	createShardedSvg,
-	layoutShardedText,
+	renderYuragiText,
 	type TextOutline,
+	type YuragiTextHandle,
 } from "@yuragi-labs/core";
 import "@yuragi-labs/core/style.css";
 import { onMount } from "svelte";
 import {
-	createInitialAnimationController,
 	createAnimationBudget,
 	waitForOpaqueTransition,
 } from "../utils/yuragi-animation";
@@ -57,29 +55,58 @@ onMount(() => {
 		return;
 	}
 
+	type SwupHooks = {
+		on(event: "animation:out:start", handler: () => void): () => void;
+	};
+
 	let disposed = false;
+	let exiting = false;
+	let enterRequested = false;
+	let enterComplete = false;
 	let outline: TextOutline | undefined;
+	let titleHandle: YuragiTextHandle | undefined;
 	let frame: number | undefined;
+	let revealFrame: number | undefined;
 	let cancelTransitionWait = () => {};
+	let unregisterExit = () => {};
+
 	const setSvgVisible = (visible: boolean) => {
 		svgHost.classList.toggle("pending-reveal", !visible);
 	};
-	const initialAnimation = createInitialAnimationController<SVGSVGElement>(
-		(svg) =>
-			animateShards(svg, {
-				type: "settle",
-				stagger: "by-x",
-			}),
-		() => {
-			setSvgVisible(false);
-		},
-		() => setSvgVisible(true),
-	);
+
+	function requestEnter() {
+		enterRequested = true;
+		if (!titleHandle || exiting) return;
+		const playingHandle = titleHandle;
+		void playingHandle.play().then(() => {
+			if (
+				titleHandle === playingHandle &&
+				!disposed &&
+				!exiting
+			) {
+				enterComplete = true;
+			}
+		});
+		if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
+		revealFrame = requestAnimationFrame(() => {
+			revealFrame = undefined;
+			if (
+				titleHandle === playingHandle &&
+				!disposed &&
+				!exiting
+			) {
+				setSvgVisible(true);
+			}
+		});
+	}
 
 	function selectFallback() {
 		animationBudget.cancel();
 		cancelTransitionWait();
-		initialAnimation.cancel();
+		if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
+		revealFrame = undefined;
+		titleHandle?.dispose();
+		titleHandle = undefined;
 		setSvgVisible(false);
 		svgHost.replaceChildren();
 		enhancementState = "fallback";
@@ -94,36 +121,42 @@ onMount(() => {
 		cancelTransitionWait = waitForOpaqueTransition(
 			() =>
 				Number.parseFloat(getComputedStyle(swupContainer).opacity) >= 1,
-			() => initialAnimation.start(),
+			requestEnter,
 			selectFallback,
 			PAGE_TRANSITION_GATE_TIMEOUT_MS,
 		);
 	} else {
-		initialAnimation.start();
+		requestEnter();
 	}
 
 	function renderSvg() {
-		if (!outline || disposed || enhancementState === "fallback") return;
+		if (!outline || disposed || exiting || enhancementState === "fallback") {
+			return;
+		}
 
 		const maxWidth = svgHost.clientWidth;
 		if (maxWidth <= 0) return;
 
-		const layout = layoutShardedText(outline, {
+		const initial = enhancementState === "pending";
+		if (initial && !animationBudget.claim()) return;
+
+		const shouldAnimate = !enterComplete;
+		if (shouldAnimate) setSvgVisible(false);
+		titleHandle = renderYuragiText(svgHost, outline, {
 			size: media.matches ? 36 : 30,
 			maxWidth,
-		});
-		const svg = createShardedSvg(layout);
-		svg.setAttribute("aria-hidden", "true");
-		if (
-			enhancementState === "pending" &&
-			!animationBudget.claim()
-		) {
-			return;
-		}
-		initialAnimation.replace(svg, () => {
-			svgHost.replaceChildren(svg);
+			ariaLabel: false,
+			animation: shouldAnimate
+				? { autoplay: false, stagger: "by-x" }
+				: false,
 		});
 		enhancementState = "ready";
+
+		if (shouldAnimate && enterRequested) {
+			requestEnter();
+		} else if (!shouldAnimate) {
+			setSvgVisible(true);
+		}
 	}
 
 	function render() {
@@ -143,7 +176,21 @@ onMount(() => {
 	observer.observe(svgHost);
 	media.addEventListener("change", scheduleRender);
 
-	const isPending = () => !disposed && enhancementState === "pending";
+	const swup = window.swup as unknown as { hooks?: SwupHooks };
+	unregisterExit =
+		swup.hooks?.on("animation:out:start", () => {
+			if (disposed || exiting || !titleHandle) return;
+			exiting = true;
+			cancelTransitionWait();
+			if (frame !== undefined) cancelAnimationFrame(frame);
+			if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
+			const exitingHandle = titleHandle;
+			titleHandle = undefined;
+			void exitingHandle.remove();
+		}) ?? (() => {});
+
+	const isPending = () =>
+		!disposed && !exiting && enhancementState === "pending";
 	void pendingFont
 		.then((font) => (isPending() ? font.compile(text) : undefined))
 		.then((compiled) => {
@@ -157,10 +204,12 @@ onMount(() => {
 
 	return () => {
 		disposed = true;
+		unregisterExit();
 		if (frame !== undefined) cancelAnimationFrame(frame);
+		if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
 		animationBudget.cancel();
 		cancelTransitionWait();
-		initialAnimation.cancel();
+		titleHandle?.dispose();
 		observer.disconnect();
 		media.removeEventListener("change", scheduleRender);
 	};
