@@ -60,8 +60,8 @@ importers:
         specifier: ^0.5.20
         version: 0.5.20(tailwindcss@3.4.19(yaml@2.9.0))
       '@yuragi-labs/core':
-        specifier: 0.2.0
-        version: 0.2.0
+        specifier: 0.3.0
+        version: 0.3.0
       astro:
         specifier: 5.18.1
         version: 5.18.1(@types/node@25.9.1)(jiti@1.21.7)(lightningcss@1.29.3)(rollup@2.80.0)(sass@1.93.3)(stylus@0.64.0)(terser@5.46.0)(typescript@5.9.3)(yaml@2.9.0)
@@ -2328,8 +2328,8 @@ packages:
   '@vscode/l10n@0.0.18':
     resolution: {integrity: sha512-KYSIHVmslkaCDyw013pphY+d7x1qV8IZupYfeIfzNA+nsaWHbn5uPuQRvdRFsa9zFzGeudPuoGoZ1Op4jrJXIQ==}
 
-  '@yuragi-labs/core@0.2.0':
-    resolution: {integrity: sha512-JOeLVKn5TYKM+H9BZKYq+Mv/HcDjBrLbsLVhswQ3fIRwjJWr7gjAiAzgY2vgV7UQypyvt4YkRHIX8EnSxGqjbQ==}
+  '@yuragi-labs/core@0.3.0':
+    resolution: {integrity: sha512-adu8eWUG1qO0geWqgGDMUBrMxvrqyrjJLkiKD9WAAAcFQ5KnIolHEHFlwju1jUAMNTnsP6K2laKcH13qQ71jiw==}
 
   acorn@8.16.0:
     resolution: {integrity: sha512-UVJyE9MttOsBQIDKw1skb9nAwQuR5wuGD3+82K6JgJlm/Y+KI92oNsMNGZCYdDsVtRHSak0pcV5Dno5+4jh9sw==}
@@ -8055,7 +8055,7 @@ snapshots:
 
   '@vscode/l10n@0.0.18': {}
 
-  '@yuragi-labs/core@0.2.0': {}
+  '@yuragi-labs/core@0.3.0': {}
 
   acorn@8.16.0: {}
 

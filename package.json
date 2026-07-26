@@ -34,7 +34,7 @@
     "@iconify/svelte": "^5.2.2",
     "@swup/astro": "^1.8.0",
     "@tailwindcss/typography": "^0.5.20",
-    "@yuragi-labs/core": "0.2.0",
+    "@yuragi-labs/core": "0.3.0",
     "astro": "5.18.1",
     "astro-expressive-code": "^0.44.0",
     "astro-icon": "^1.1.5",
