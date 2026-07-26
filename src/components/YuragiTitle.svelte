@@ -176,18 +176,31 @@ onMount(() => {
 	observer.observe(svgHost);
 	media.addEventListener("change", scheduleRender);
 
-	const swup = window.swup as unknown as { hooks?: SwupHooks };
-	unregisterExit =
-		swup.hooks?.on("animation:out:start", () => {
-			if (disposed || exiting || !titleHandle) return;
-			exiting = true;
-			cancelTransitionWait();
-			if (frame !== undefined) cancelAnimationFrame(frame);
-			if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
-			const exitingHandle = titleHandle;
-			titleHandle = undefined;
-			void exitingHandle.remove();
-		}) ?? (() => {});
+	function registerExit() {
+		const swup = window.swup as unknown as
+			| { hooks?: SwupHooks }
+			| undefined;
+		unregisterExit =
+			swup?.hooks?.on("animation:out:start", () => {
+				if (disposed || exiting || !titleHandle) return;
+				exiting = true;
+				cancelTransitionWait();
+				if (frame !== undefined) cancelAnimationFrame(frame);
+				if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);
+				const exitingHandle = titleHandle;
+				titleHandle = undefined;
+				void exitingHandle.remove();
+			}) ?? (() => {});
+	}
+
+	const swup = window.swup as unknown as
+		| { hooks?: SwupHooks }
+		| undefined;
+	if (swup?.hooks) {
+		registerExit();
+	} else {
+		document.addEventListener("swup:enable", registerExit, { once: true });
+	}
 
 	const isPending = () =>
 		!disposed && !exiting && enhancementState === "pending";
@@ -204,6 +217,7 @@ onMount(() => {
 
 	return () => {
 		disposed = true;
+		document.removeEventListener("swup:enable", registerExit);
 		unregisterExit();
 		if (frame !== undefined) cancelAnimationFrame(frame);
 		if (revealFrame !== undefined) cancelAnimationFrame(revealFrame);

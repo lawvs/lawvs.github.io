@@ -49,6 +49,15 @@ test("article title uses the unified Yuragi renderer lifecycle", async () => {
 	assert.match(component, /\brenderYuragiText\b/);
 	assert.match(component, /\bYuragiTextHandle\b/);
 	assert.match(component, /animation:out:start/);
+	assert.match(component, /\bswup\?\.hooks\?\.on/);
+	assert.match(
+		component,
+		/document\.addEventListener\(\s*["']swup:enable["'][\s\S]*?\{\s*once:\s*true\s*\}/,
+	);
+	assert.match(
+		component,
+		/document\.removeEventListener\(\s*["']swup:enable["']/,
+	);
 	assert.match(component, /\.play\(\)/);
 	assert.match(component, /\.remove\(\)/);
 	assert.doesNotMatch(
