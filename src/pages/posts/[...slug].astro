@@ -11,7 +11,7 @@ import { Icon } from "astro-icon/components";
 import { licenseConfig } from "src/config";
 import ImageWrapper from "../../components/misc/ImageWrapper.astro";
 import PostMetadata from "../../components/PostMeta.astro";
-import YuragiTitle from "../../components/YuragiTitle.svelte";
+import YuragiTitle from "../../components/YuragiTitle.astro";
 import { profileConfig, siteConfig } from "../../config";
 import { formatDateToYYYYMMDD } from "../../utils/date-utils";
 
@@ -71,8 +71,8 @@ const jsonLd = {
             </div>
 
             <!-- title -->
-            <div class="relative onload-animation">
-                <YuragiTitle text={entry.data.title} client:load />
+            <div class="relative">
+                <YuragiTitle text={entry.data.title} />
             </div>
 
             <!-- metadata -->
