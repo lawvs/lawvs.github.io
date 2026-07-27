@@ -38,15 +38,22 @@ const ENTER_ANIMATION_WINDOW_MS = 300;
 
 const enhancedTitles = new WeakMap<Element, () => void>();
 
-function enhanceTitle(host: Element) {
-	const fallbackHost = host.querySelector<HTMLSpanElement>(".fallback-text");
-	const svgHost = host.querySelector<HTMLSpanElement>(".svg-host");
-	const text = host.getAttribute("data-yuragi-text") ?? fallbackHost?.textContent;
-	if (!fallbackHost || !svgHost || !text) return () => {};
+function getTitleElements(host: Element) {
+	const fallbackElement = host.querySelector<HTMLSpanElement>(".fallback-text");
+	const svgElement = host.querySelector<HTMLSpanElement>(".svg-host");
+	const titleText =
+		host.getAttribute("data-yuragi-text") ?? fallbackElement?.textContent;
+	if (!fallbackElement || !svgElement || !titleText) return;
 
-	const fallbackElement = fallbackHost;
-	const svgElement = svgHost;
-	const titleText = text;
+	return { fallbackElement, svgElement, titleText };
+}
+
+function enhanceTitle(host: Element) {
+	const elements = getTitleElements(host);
+	if (!elements) return () => {};
+
+	const { fallbackElement, svgElement, titleText } = elements;
+
 	const media = window.matchMedia("(min-width: 768px)");
 	const swupContainer = svgElement.closest("#swup-container");
 	const mountedAt = performance.now();
