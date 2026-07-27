@@ -1,0 +1,259 @@
+---
+import "@yuragi-labs/core/style.css";
+
+interface Props {
+	text: string;
+}
+
+const { text } = Astro.props;
+---
+
+<span
+	class="transition w-full block font-bold mb-3 text-3xl md:text-[2.25rem]/[2.75rem]
+		text-black/90 dark:text-white/90 md:before:w-1 before:h-5 before:rounded-md
+		before:bg-[var(--primary)] before:absolute before:top-[0.75rem] before:left-[-1.125rem]"
+	data-pagefind-body
+	data-pagefind-weight="10"
+	data-pagefind-meta="title"
+	data-yuragi-title
+	data-yuragi-text={text}
+>
+	<span class="fallback-text">{text}</span>
+	<span class="svg-host" style="visibility: hidden" aria-hidden="true"></span>
+</span>
+
+<script>
+import {
+	renderYuragiText,
+	type TextOutline,
+	type YuragiTextHandle,
+} from "@yuragi-labs/core";
+import type { YuragiFont } from "@yuragi-labs/core/wasm";
+import {
+	getCachedYuragiTitleFont,
+	loadYuragiTitleFont,
+} from "../utils/yuragi-title-font";
+
+const ENTER_ANIMATION_WINDOW_MS = 300;
+
+const enhancedTitles = new WeakMap<Element, () => void>();
+
+function getTitleElements(host: Element) {
+	const fallbackElement = host.querySelector<HTMLSpanElement>(".fallback-text");
+	const svgElement = host.querySelector<HTMLSpanElement>(".svg-host");
+	const titleText =
+		host.getAttribute("data-yuragi-text") ?? fallbackElement?.textContent;
+	if (!fallbackElement || !svgElement || !titleText) return;
+
+	return { fallbackElement, svgElement, titleText };
+}
+
+function enhanceTitle(host: Element) {
+	const elements = getTitleElements(host);
+	if (!elements) return () => {};
+
+	const { fallbackElement, svgElement, titleText } = elements;
+
+	const media = window.matchMedia("(min-width: 768px)");
+	const swupContainer = svgElement.closest("#swup-container");
+	const mountedAt = performance.now();
+
+	let disposed = false;
+	let fallbackOnly = false;
+	let renderedOnce = false;
+	let outline: TextOutline | undefined;
+	let titleHandle: YuragiTextHandle | undefined;
+	let frame: number | undefined;
+	let enterFrame: number | undefined;
+	let fallbackTimer: number | undefined;
+	let lastRenderedWidth: number | undefined;
+	let lastRenderedSize: number | undefined;
+
+	function isPageOpaque() {
+		return (
+			swupContainer === null ||
+			Number.parseFloat(getComputedStyle(swupContainer).opacity) >= 1
+		);
+	}
+
+	function showPending() {
+		fallbackElement.hidden = false;
+		fallbackElement.style.visibility = "hidden";
+		svgElement.style.visibility = "hidden";
+	}
+
+	function showFallback() {
+		fallbackElement.hidden = false;
+		fallbackElement.style.visibility = "";
+		svgElement.style.visibility = "hidden";
+	}
+
+	function showSvg() {
+		fallbackElement.hidden = true;
+		fallbackElement.style.visibility = "";
+		svgElement.style.visibility = "";
+	}
+
+	function stopFallbackTimer() {
+		if (fallbackTimer === undefined) return;
+		clearTimeout(fallbackTimer);
+		fallbackTimer = undefined;
+	}
+
+	function selectFallback() {
+		fallbackOnly = true;
+		stopFallbackTimer();
+		if (enterFrame !== undefined) cancelAnimationFrame(enterFrame);
+		enterFrame = undefined;
+		titleHandle?.dispose();
+		titleHandle = undefined;
+		showFallback();
+		svgElement.replaceChildren();
+	}
+
+	function playEnterWhenOpaque(playingHandle: YuragiTextHandle) {
+		if (enterFrame !== undefined) cancelAnimationFrame(enterFrame);
+		const play = () => {
+			enterFrame = undefined;
+			if (disposed || titleHandle !== playingHandle) return;
+			if (!isPageOpaque()) {
+				enterFrame = requestAnimationFrame(play);
+				return;
+			}
+			void playingHandle.play();
+		};
+		play();
+	}
+
+	function renderSvg() {
+		if (!outline || disposed || fallbackOnly) {
+			return;
+		}
+
+		const maxWidth = svgElement.clientWidth;
+		if (maxWidth <= 0) return;
+		const size = media.matches ? 36 : 30;
+		if (
+			titleHandle &&
+			lastRenderedWidth === maxWidth &&
+			lastRenderedSize === size
+		) {
+			return;
+		}
+
+		const shouldAnimate =
+			!renderedOnce &&
+			performance.now() - mountedAt <= ENTER_ANIMATION_WINDOW_MS;
+		titleHandle = renderYuragiText(svgElement, outline, {
+			size,
+			maxWidth,
+			ariaLabel: false,
+			animation: shouldAnimate
+				? { autoplay: false, stagger: "by-x" }
+				: false,
+		});
+		lastRenderedWidth = maxWidth;
+		lastRenderedSize = size;
+		renderedOnce = true;
+
+		showSvg();
+		if (shouldAnimate) playEnterWhenOpaque(titleHandle);
+	}
+
+	function render() {
+		try {
+			renderSvg();
+		} catch {
+			selectFallback();
+		}
+	}
+
+	function scheduleRender() {
+		if (frame !== undefined) cancelAnimationFrame(frame);
+		frame = requestAnimationFrame(render);
+	}
+
+	const observer = new ResizeObserver(scheduleRender);
+	observer.observe(svgElement);
+	media.addEventListener("change", scheduleRender);
+
+	function compileAndRender(font: YuragiFont) {
+		if (disposed || fallbackOnly) return;
+		stopFallbackTimer();
+		try {
+			const compiled = font.compile(titleText);
+			if (disposed || fallbackOnly) return;
+			outline = compiled;
+			render();
+		} catch {
+			selectFallback();
+		}
+	}
+
+	if (document.documentElement.classList.contains("is-changing")) {
+		showPending();
+	}
+	fallbackTimer = window.setTimeout(
+		selectFallback,
+		ENTER_ANIMATION_WINDOW_MS,
+	);
+
+	const cachedFont = getCachedYuragiTitleFont();
+	if (cachedFont) {
+		compileAndRender(cachedFont);
+	} else {
+		void loadYuragiTitleFont()
+			.then((font) => {
+				compileAndRender(font);
+			})
+			.catch(() => {
+				if (!disposed) selectFallback();
+			});
+	}
+
+	return () => {
+		disposed = true;
+		stopFallbackTimer();
+		if (frame !== undefined) cancelAnimationFrame(frame);
+		if (enterFrame !== undefined) cancelAnimationFrame(enterFrame);
+		titleHandle?.dispose();
+		observer.disconnect();
+		media.removeEventListener("change", scheduleRender);
+	};
+}
+
+function enhanceTitles() {
+	document.querySelectorAll("[data-yuragi-title]").forEach((host) => {
+		if (enhancedTitles.has(host)) return;
+		enhancedTitles.set(host, enhanceTitle(host));
+	});
+}
+
+function cleanupTitles() {
+	document.querySelectorAll("[data-yuragi-title]").forEach((host) => {
+		enhancedTitles.get(host)?.();
+		enhancedTitles.delete(host);
+	});
+}
+
+enhanceTitles();
+document.addEventListener("astro:page-load", enhanceTitles);
+document.addEventListener("astro:before-swap", cleanupTitles);
+</script>
+
+<style>
+.fallback-text {
+	transition: none;
+}
+
+.svg-host {
+	display: block;
+	width: 100%;
+}
+
+.svg-host :global(svg) {
+	display: block;
+	max-width: 100%;
+	height: auto;
+}
+</style>

@@ -155,6 +155,9 @@ export default defineConfig({
     ],
   },
   vite: {
+    optimizeDeps: {
+      exclude: ["@yuragi-labs/core/wasm"],
+    },
     build: {
       rollupOptions: {
         onwarn(warning, warn) {
