@@ -7,6 +7,18 @@ tags:
   - Email
 ---
 
+:::warning
+本文为旧方案，时效性已发生变化。Google 官方已宣布：自 2027 年 1 月起，Gmail 将停止对第三方邮箱地址（如 Yahoo、Outlook、个人域名邮箱）的「Send as（代发）」支持。
+
+这意味着你仍可在 Gmail 移动端查看第三方账号来信，但无法继续以第三方地址在 Gmail 中代发回复。若你依赖本文方案，请在 2027 年前迁移到桌面客户端（如 Thunderbird/Outlook）或其他邮件服务方案。
+
+参考：
+
+- https://support.google.com/mail/answer/17101213
+- https://support.google.com/mail/answer/22370
+- https://www.androidauthority.com/gmail-killing-third-party-send-as-feature-3694659/
+  :::
+
 在开始之前当然需要有一个自定义域名，如果没有的话就去购买一个吧！
 
 注意，这个方案使用了 Gmail 进行代发邮件，没有 [DMIK](https://en.wikipedia.org/wiki/DomainKeys_Identified_Mail) 签名，并不是一个专业的自建邮箱方案，所以不适合用于发送重要的业务邮件。
